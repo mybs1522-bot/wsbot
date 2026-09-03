@@ -68,13 +68,13 @@ function cleanMediaUrl(rawUrl) {
   return url;
 }
 
-// High-EQ Human Scheduling & Conversation Engine
+// High-EQ Human Scheduling & Conversation Engine Fallback
 function generateSmartReply(userMessage, businessName, faqs, conversationHistory = []) {
   const msg = (userMessage || '').trim();
   const lower = msg.toLowerCase();
   const bName = businessName || 'our team';
 
-  // 1. Extract customer name from current message or conversation history
+  // 1. Extract customer name
   let detectedName = '';
   const nameMatch = msg.match(/(?:my name is|i am|i'm|this is|call me)\s+([A-Za-z]+)/i);
   if (nameMatch && nameMatch[1]) {
@@ -93,18 +93,16 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
 
   const nameTag = detectedName ? ` ${detectedName}` : '';
 
-  // 2. Intelligent Appointment Day & Time Slot Checking (e.g., "3:00 pm sunday", "tomorrow 5pm", "monday at 10am")
+  // 2. Intelligent Appointment Day & Time Slot Checking
   const isTimeOrDayGiven = /\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today))\b/i.test(lower);
   const lastBotMsg = conversationHistory.slice().reverse().find(t => t.role === 'model')?.parts?.[0]?.text || '';
   const wasBookingContext = /(book|date|time|appointment|schedule|slot|when)/i.test(lastBotMsg) || /(book|schedule|reserve|appointment)/i.test(lower);
 
   if (isTimeOrDayGiven || wasBookingContext) {
-    // Check if user requested Sunday (Closed)
     if (lower.includes('sunday')) {
       return `Sorry${nameTag}, we are closed on Sundays! 🕒 Our working hours are Monday to Saturday from 9:00 AM to 6:00 PM. Could you choose a time between Monday and Saturday instead? 😊`;
     }
 
-    // Check if user requested time outside working hours (Before 9 AM or After 6 PM)
     const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
     if (timeMatch) {
       let hour = parseInt(timeMatch[1], 10);
@@ -117,7 +115,6 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
       }
     }
 
-    // Valid booking time given
     if (isTimeOrDayGiven) {
       return `Perfect${nameTag}! I've noted *${msg}* for your appointment. 📅 Our team has received your request and will confirm your booking shortly. Is there anything specific you'd like us to prepare for you? 😊`;
     }
@@ -160,66 +157,96 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
   return `I'm here to help${nameTag}! 😊 You can tell me what service you're looking for, or ask about our *pricing*, *timings*, or *booking a slot*. How can I best assist you?`;
 }
 
-// Google Gemini Flash AI Engine with Multi-Turn Memory & Persona
-function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, currentUserMessage, businessName, faqs) {
-  return new Promise((resolve) => {
-    const key = apiKey || process.env.GEMINI_API_KEY;
-
-    if (!key) {
-      return resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
-    }
-
-    const contents = [
-      ...(conversationHistory || []),
-      {
-        role: 'user',
-        parts: [{ text: currentUserMessage }]
-      }
-    ];
-
-    const payload = JSON.stringify({
-      system_instruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      contents: contents,
-      generationConfig: {
-        maxOutputTokens: 300,
-        temperature: 0.7,
-        topP: 0.95
-      }
-    });
-
-    const modelName = 'gemini-1.5-flash';
+// Low-level HTTP helper to call Google Gemini API with fallback models
+function makeGeminiRequest(key, modelName, payload) {
+  return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': key,
         'Content-Length': Buffer.byteLength(payload)
-      }
+      },
+      timeout: 8000
     }, res => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          const reply = json.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (reply && reply.trim().length > 0) {
-            resolve(reply.trim());
+          if (json.error) {
+            reject(new Error(json.error.message || JSON.stringify(json.error)));
           } else {
-            resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
+            const reply = json.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply && reply.trim().length > 0) {
+              resolve(reply.trim());
+            } else {
+              reject(new Error('Empty candidate reply from Gemini'));
+            }
           }
         } catch (e) {
-          resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
+          reject(e);
         }
       });
     });
 
-    req.on('error', () => resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory)));
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Gemini API timeout'));
+    });
     req.write(payload);
     req.end();
   });
+}
+
+// Google Gemini Flash AI Engine with Multi-Turn Memory & Multi-Model Fallback
+async function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, currentUserMessage, businessName, faqs) {
+  const key = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+  if (!key || typeof key !== 'string' || key.trim().length < 10) {
+    console.log('[Gemini Engine] No valid Gemini API Key found. Using intelligent built-in fallback.');
+    return generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory);
+  }
+
+  const cleanKey = key.trim();
+
+  const contents = [
+    ...(conversationHistory || []),
+    {
+      role: 'user',
+      parts: [{ text: currentUserMessage }]
+    }
+  ];
+
+  const payload = JSON.stringify({
+    system_instruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    contents: contents,
+    generationConfig: {
+      maxOutputTokens: 350,
+      temperature: 0.7,
+      topP: 0.95
+    }
+  });
+
+  // Try gemini-1.5-flash, then gemini-2.0-flash, then gemini-pro
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-pro'];
+  for (const model of models) {
+    try {
+      const reply = await makeGeminiRequest(cleanKey, model, payload);
+      console.log(`[Gemini Engine] Success with ${model}`);
+      return reply;
+    } catch (err) {
+      console.warn(`[Gemini Engine] Error with ${model}: ${err.message}`);
+    }
+  }
+
+  // Fallback to Smart Engine if Google fails
+  return generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory);
 }
 
 // Helper to detect media type from URL extension
@@ -306,6 +333,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Status / Health Check Endpoint
+    if (action === 'status' || rawUrl.includes('/api/status')) {
+      const hasKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+      return sendJson(res, 200, {
+        status: 'online',
+        geminiConfigured: hasKey,
+        keyLength: hasKey ? (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY).length : 0
+      });
+    }
+
     // 1. Evolution API Proxy: /api/evo/*
     if (action === 'evo' || rawUrl.includes('/api/evo/')) {
       const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
@@ -366,7 +403,7 @@ ESSENTIAL RULES:
    - Keep answers clear, conversational, and concise (typically 2 to 4 sentences).
    - Use bullet points (•) and *bold* text for readability.`;
 
-            // Call Google Gemini Flash with full conversation history
+            // Call Google Gemini Flash with multi-model fallback and multi-turn history
             const aiReply = await callGeminiWithHistory(
               botConfig.geminiKey,
               systemPrompt,
