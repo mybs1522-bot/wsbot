@@ -1166,15 +1166,34 @@ How can we help you today? You can ask about:
       const businessName = document.getElementById('cfg-business-name').value.trim();
       const geminiKey = document.getElementById('cfg-gemini-key').value.trim();
       const faqs = document.getElementById('cfg-faqs').value.trim();
+      const catalogMediaUrl = document.getElementById('cfg-catalog-media')?.value.trim() || '';
+      const welcomeMediaUrl = document.getElementById('cfg-welcome-media')?.value.trim() || '';
+      const locationMediaUrl = document.getElementById('cfg-location-media')?.value.trim() || '';
 
       try {
         const res = await fetch('/api/test-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessName, geminiKey, faqs, message: text })
+          body: JSON.stringify({ 
+            businessName, 
+            geminiKey, 
+            faqs, 
+            catalogMediaUrl, 
+            welcomeMediaUrl, 
+            locationMediaUrl, 
+            message: text 
+          })
         });
         const data = await res.json();
-        document.getElementById(botMsgId).innerText = data.reply || 'No response';
+        
+        const bubble = document.getElementById(botMsgId);
+        bubble.innerHTML = '';
+
+        if (data.mediaUrl) {
+          bubble.innerHTML += `<div style="margin-bottom: 8px;"><img src="${data.mediaUrl}" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px;" onerror="this.style.display='none'" /></div>`;
+        }
+        bubble.innerHTML += `<div>${data.reply || 'No response'}</div>`;
+
       } catch (err) {
         document.getElementById(botMsgId).innerText = 'Error calling Gemini AI: ' + err.message;
       }

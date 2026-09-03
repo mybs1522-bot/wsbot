@@ -30,6 +30,22 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
+// Convert Google Drive share link to direct downloadable image link
+function cleanMediaUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const url = rawUrl.trim();
+
+  // Handle Google Drive links
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      // Direct CDN link for Google Drive images/media
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+  }
+  return url;
+}
+
 // Built-in Smart FAQ Engine Fallback (Humanized & Warm)
 function generateSmartReply(userMessage, businessName, faqs) {
   const msg = (userMessage || '').toLowerCase().trim();
@@ -41,16 +57,25 @@ function generateSmartReply(userMessage, businessName, faqs) {
     return `👋 Hello! Thanks for reaching out to *${bName}*. I'm happy to assist you!\n\nHow can I help you today? You can ask me about:\n• 💰 *Services & Pricing*\n• 🕒 *Working Hours*\n• 📍 *Our Location*\n• 📅 *Booking an Appointment*`;
   }
 
-  // 2. Pricing / Cost / Rates / Catalog / Photos
-  if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|photo|pic|video)/i.test(msg)) {
-    const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
+  // 2. Location / Address / Store Photo / Where
+  if (/(location|address|where|direction|city|map|store|office|shop)/i.test(msg)) {
+    const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map|office|city)/i.test(l));
     if (lines.length > 0) {
-      return `💰 *Here are the pricing & services for ${bName}:*\n\n${lines.join('\n')}\n\nWould you like me to help you book a slot or answer any specific questions? 😊`;
+      return `📍 *Location & Address for ${bName}:*\n\n${lines.join('\n')}\n\nHere is our location photo attached above! Let us know if you need assistance with directions.`;
     }
-    return `💰 Here is our general service pricing at *${bName}*:\n• Consultation & Assessment: $50\n• Complete Package: $150 - $400\n\nLet me know if you would like more details on any service!`;
+    return `📍 Here is our store location photo above! We are located at Main Office Suite 400. Let us know if you need directions!`;
   }
 
-  // 3. Hours / Timing / When open
+  // 3. Pricing / Cost / Rates / Catalog / Portfolio
+  if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|sample|package)/i.test(msg)) {
+    const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
+    if (lines.length > 0) {
+      return `💰 *Pricing & Services for ${bName}:*\n\n${lines.join('\n')}\n\nWould you like me to help you book a slot or answer any specific questions? 😊`;
+    }
+    return `💰 Here is our service pricing at *${bName}*:\n• Consultation & Assessment: $50\n• Complete Package: $150 - $400\n\nLet me know if you would like more details on any service!`;
+  }
+
+  // 4. Hours / Timing / When open
   if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(hour|timing|open|close|mon|tue|wed|thu|fri|sat|sun|am|pm)/i.test(l));
     if (lines.length > 0) {
@@ -59,22 +84,13 @@ function generateSmartReply(userMessage, businessName, faqs) {
     return `🕒 We are open Monday to Saturday from 9:00 AM to 6:00 PM (Closed on Sundays).`;
   }
 
-  // 4. Booking / Appointment / Schedule
+  // 5. Booking / Appointment / Schedule
   if (/(book|appointment|schedule|slot|reserve|visit)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
     if (lines.length > 0) {
       return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nAlternatively, reply with your preferred date and time, and our team will confirm it for you!`;
     }
     return `📅 We would love to schedule you in! Please reply with your preferred date & time, and our team will book your slot right away.`;
-  }
-
-  // 5. Location / Address / Where
-  if (/(location|address|where|direction|city|map)/i.test(msg)) {
-    const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map)/i.test(l));
-    if (lines.length > 0) {
-      return `📍 *Our Location:*\n\n${lines.join('\n')}\n\nLet us know if you need assistance with directions!`;
-    }
-    return `📍 We are located at Main Office Suite 400. Let us know if you need driving directions!`;
   }
 
   // 6. Contact / Phone / Emergency / Human
@@ -86,16 +102,7 @@ function generateSmartReply(userMessage, businessName, faqs) {
     return `📞 You can reach our team directly. A team member has also been notified and will jump into this chat shortly!`;
   }
 
-  // 7. Keyword Search in Custom FAQ
-  const words = msg.split(/\s+/).filter(w => w.length > 3);
-  for (const word of words) {
-    const matchedLines = faqText.split('\n').filter(l => l.toLowerCase().includes(word));
-    if (matchedLines.length > 0) {
-      return `ℹ️ *Information about ${bName}:*\n\n${matchedLines.slice(0, 4).join('\n')}\n\nLet me know if you need anything else!`;
-    }
-  }
-
-  // 8. General Human Fallback
+  // 7. General Human Fallback
   return `Thank you for messaging *${bName}*! 😊\n\nI've received your inquiry. You can ask me about our *pricing*, *services*, *hours*, *location*, or *booking an appointment*. A team member will also follow up with you shortly!`;
 }
 
@@ -289,7 +296,7 @@ CONVERSATION GUIDELINES:
 1. Tone: Friendly, polite, professional, and conversational (use a warm greeting and 1-2 natural emojis like 👋, 😊, 🕒).
 2. WhatsApp Format: Keep replies concise (2-4 sentences). Use bullet points (•) for lists and *bold* for key terms like prices or dates.
 3. Accuracy: Base answers strictly on the business details provided above. If an inquiry is not covered, politely state that you've noted it and a team member will assist them shortly.
-4. Action-Oriented: If the user wants to book or buy, direct them to the booking link or phone number provided in the FAQs.`;
+4. Action-Oriented: If the user asks to book or buy, direct them to the booking link or phone number provided in the FAQs.`;
 
             // Call Google Gemini Flash AI (with built-in Smart FAQ fallback)
             const aiReply = await callGemini(
@@ -306,29 +313,31 @@ CONVERSATION GUIDELINES:
             const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
             const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
-            // Media attachment detection (Catalog, Photos, Videos, Map)
+            // Media attachment detection with Google Drive auto-transform
             const lowerMsg = userText.toLowerCase();
-            let mediaToSend = null;
+            let rawMedia = null;
 
-            if (/(price|pricing|catalog|catalogue|brochure|portfolio|photo|picture|sample|menu)/i.test(lowerMsg) && botConfig.catalogMediaUrl) {
-              mediaToSend = botConfig.catalogMediaUrl;
-            } else if (/(location|address|map|where|store|office)/i.test(lowerMsg) && botConfig.locationMediaUrl) {
-              mediaToSend = botConfig.locationMediaUrl;
+            if (/(store|office|location|address|map|shop|where|place)/i.test(lowerMsg) && botConfig.locationMediaUrl) {
+              rawMedia = botConfig.locationMediaUrl;
+            } else if (/(price|pricing|catalog|catalogue|brochure|portfolio|sample|menu|photo|pic)/i.test(lowerMsg) && botConfig.catalogMediaUrl) {
+              rawMedia = botConfig.catalogMediaUrl;
             } else if (/(hi|hello|hey|welcome|start)/i.test(lowerMsg) && botConfig.welcomeMediaUrl) {
-              mediaToSend = botConfig.welcomeMediaUrl;
+              rawMedia = botConfig.welcomeMediaUrl;
             }
 
-            if (mediaToSend) {
-              const { mediatype, mimetype } = getMediaTypeAndMime(mediaToSend);
-              console.log(`[Sending Media] ${mediatype} from ${mediaToSend}`);
+            const directMediaUrl = cleanMediaUrl(rawMedia);
+
+            if (directMediaUrl) {
+              const { mediatype, mimetype } = getMediaTypeAndMime(directMediaUrl);
+              console.log(`[Sending Media] ${mediatype} from ${directMediaUrl}`);
               
               await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendMedia/${encodeURIComponent(instanceName)}`, {
                 number: phoneSender,
                 mediatype,
                 mimetype,
                 caption: aiReply,
-                media: mediaToSend,
-                fileName: `attachment.${mediatype === 'document' ? 'pdf' : (mediatype === 'video' ? 'mp4' : 'jpg')}`
+                media: directMediaUrl,
+                fileName: `media_attachment.${mediatype === 'document' ? 'pdf' : (mediatype === 'video' ? 'mp4' : 'jpg')}`
               });
             } else {
               // Standard Text Message
@@ -366,6 +375,8 @@ CONVERSATION GUIDELINES:
     if (action === 'test-chat' && req.method === 'POST') {
       const data = await getBody(req);
       const businessName = data.businessName || 'Our Business';
+      const userMessage = data.message || 'Hi';
+
       const systemPrompt = `You are a warm, courteous, and highly competent customer support concierge for "${businessName}". Answer the customer in a friendly, conversational WhatsApp format (2-3 sentences).
 BUSINESS INFORMATION & FAQS:
 ${data.faqs || 'We provide professional services.'}`;
@@ -373,11 +384,25 @@ ${data.faqs || 'We provide professional services.'}`;
       const reply = await callGemini(
         data.geminiKey, 
         systemPrompt, 
-        data.message || 'Hi', 
+        userMessage, 
         businessName, 
         data.faqs
       );
-      return sendJson(res, 200, { reply });
+
+      // Media attachment preview in simulator
+      const lowerMsg = userMessage.toLowerCase();
+      let rawMedia = null;
+      if (/(store|office|location|address|map|shop|where|place)/i.test(lowerMsg) && data.locationMediaUrl) {
+        rawMedia = data.locationMediaUrl;
+      } else if (/(price|pricing|catalog|catalogue|brochure|portfolio|sample|menu|photo|pic)/i.test(lowerMsg) && data.catalogMediaUrl) {
+        rawMedia = data.catalogMediaUrl;
+      } else if (/(hi|hello|hey|welcome|start)/i.test(lowerMsg) && data.welcomeMediaUrl) {
+        rawMedia = data.welcomeMediaUrl;
+      }
+
+      const mediaUrl = cleanMediaUrl(rawMedia);
+
+      return sendJson(res, 200, { reply, mediaUrl });
     }
 
     return sendJson(res, 200, { status: 'BotFlow Gemini AI + Media Engine Live' });
