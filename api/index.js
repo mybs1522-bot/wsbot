@@ -353,25 +353,30 @@ export default async function handler(req, res) {
 
     if (action === 'debug-gemini' || rawUrl.includes('debug-gemini')) {
       const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-      return new Promise((resolve) => {
-        https.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`, res => {
-          let data = '';
-          res.on('data', c => data += c);
-          res.on('end', () => {
-            try {
-              const json = JSON.parse(data);
-              const modelNames = json.models ? json.models.map(m => m.name) : json;
-              sendJson(res, 200, { success: true, models: modelNames });
-            } catch (e) {
-              sendJson(res, 200, { success: false, raw: data });
-            }
-            resolve();
-          });
-        }).on('error', err => {
-          sendJson(res, 500, { error: err.message });
-          resolve();
-        });
+      const payload = JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'Hello, testing connection.' }] }]
       });
+
+      const tests = [
+        { version: 'v1beta', model: 'gemini-1.5-flash' },
+        { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
+        { version: 'v1beta', model: 'gemini-2.0-flash' },
+        { version: 'v1beta', model: 'gemini-2.0-flash-exp' },
+        { version: 'v1',     model: 'gemini-1.5-flash' },
+        { version: 'v1',     model: 'gemini-pro' }
+      ];
+
+      const results = {};
+      for (const t of tests) {
+        try {
+          const r = await makeGeminiRequest(key, t.version, t.model, payload);
+          results[`${t.version}/${t.model}`] = { success: true, reply: r };
+        } catch (e) {
+          results[`${t.version}/${t.model}`] = { success: false, error: e.message };
+        }
+      }
+
+      return sendJson(res, 200, { keyConfigured: !!key, keyLength: key.length, results });
     }
 
     // 1. Evolution API Proxy: /api/evo/*
