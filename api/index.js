@@ -1,5 +1,6 @@
-const https = require('https');
-const http = require('http');
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
 
 // Global in-memory storage for serverless runtime
 const memoryConfigs = {};
@@ -158,8 +159,8 @@ function callOpenAI(apiKey, systemPrompt, userMessage, businessName, faqs) {
   });
 }
 
-// Vercel Serverless Function Entry Point
-module.exports = async (req, res) => {
+// Vercel Serverless Function Entry Point (ESM)
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
@@ -251,4 +252,4 @@ module.exports = async (req, res) => {
   }
 
   return res.status(200).json({ status: 'BotFlow Vercel Engine Live' });
-};
+}
