@@ -343,6 +343,19 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'debug-gemini') {
+      const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+      try {
+        const payload = JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Hello, are you online?' }] }]
+        });
+        const reply = await makeGeminiRequest(key, 'gemini-1.5-flash', payload);
+        return sendJson(res, 200, { success: true, reply });
+      } catch (err) {
+        return sendJson(res, 200, { success: false, error: err.message });
+      }
+    }
+
     // 1. Evolution API Proxy: /api/evo/*
     if (action === 'evo' || rawUrl.includes('/api/evo/')) {
       const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
