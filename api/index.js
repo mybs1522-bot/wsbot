@@ -2,7 +2,7 @@ import https from 'https';
 import http from 'http';
 import { URL, URLSearchParams } from 'url';
 
-// Global in-memory storage for serverless runtime
+// In-memory config cache
 const memoryConfigs = {};
 
 // Helper to safely parse body in any Vercel/Node environment
@@ -30,14 +30,14 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-// Built-in Smart FAQ Matcher
+// Built-in Smart FAQ Engine
 function generateSmartReply(userMessage, businessName, faqs) {
   const msg = (userMessage || '').toLowerCase().trim();
-  const bName = businessName || 'our business';
+  const bName = businessName || 'Avadaspace Design LLC';
   const faqText = faqs || '';
 
   // 1. Greetings
-  if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help)/i.test(msg)) {
+  if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)/i.test(msg)) {
     return `👋 Hello! Welcome to ${bName}.\n\nHow can we help you today? You can ask about:\n• 🕒 Business Hours\n• 💰 Services & Pricing\n• 📍 Location / Address\n• 📅 Booking an Appointment`;
   }
 
@@ -47,7 +47,7 @@ function generateSmartReply(userMessage, businessName, faqs) {
     if (lines.length > 0) {
       return `💰 *${bName} - Pricing & Services:*\n\n${lines.join('\n')}\n\nWould you like to book an appointment?`;
     }
-    return `💰 Here are our standard service rates at ${bName}:\n• Routine Consultation: $30\n• Service Package: $60 - $150\n\nLet us know which service you need!`;
+    return `💰 Here are our standard service rates at ${bName}:\n• Consultation & Design: $50\n• Full Package: $150 - $400\n\nLet us know what you need!`;
   }
 
   // 3. Hours / Timing / When open
@@ -65,7 +65,7 @@ function generateSmartReply(userMessage, businessName, faqs) {
     if (lines.length > 0) {
       return `📅 *Book an Appointment with ${bName}:*\n\n${lines.join('\n')}`;
     }
-    return `📅 You can book an appointment with ${bName} anytime! Please reply with your preferred date & time, or visit our booking link.`;
+    return `📅 You can book an appointment with ${bName} anytime! Please reply with your preferred date & time.`;
   }
 
   // 5. Location / Address / Where
@@ -74,7 +74,7 @@ function generateSmartReply(userMessage, businessName, faqs) {
     if (lines.length > 0) {
       return `📍 *Our Location:*\n\n${lines.join('\n')}`;
     }
-    return `📍 We are located at 124 Main Street, Suite 400. Let us know if you need directions!`;
+    return `📍 We are located at Main Office Suite 400. Let us know if you need directions!`;
   }
 
   // 6. Contact / Phone / Emergency / Human
@@ -83,7 +83,7 @@ function generateSmartReply(userMessage, businessName, faqs) {
     if (lines.length > 0) {
       return `📞 *Contact Info:*\n\n${lines.join('\n')}`;
     }
-    return `📞 You can reach our support team directly at (555) 019-2834. A staff member will also reply to this chat shortly!`;
+    return `📞 You can reach our support team directly. A staff member will also reply to this chat shortly!`;
   }
 
   // 7. Keyword Search in Custom FAQ
@@ -209,7 +209,7 @@ export default async function handler(req, res) {
   let pathParam = parsedUrl.searchParams.get('path') || '';
   const instanceParam = parsedUrl.searchParams.get('instance') || '';
 
-  // Preserve all extra query parameters (e.g. ?number=919811343771)
+  // Preserve all extra query parameters
   const queryParams = new URLSearchParams(parsedUrl.search);
   queryParams.delete('action');
   queryParams.delete('path');
@@ -236,46 +236,56 @@ export default async function handler(req, res) {
       const instanceName = decodeURIComponent(instanceParam || rawUrl.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
       const eventData = await getBody(req);
 
-      if (eventData.event === 'messages.upsert' && eventData.data) {
-        const msg = eventData.data;
-        const isFromMe = msg.key?.fromMe;
-        const remoteJid = msg.key?.remoteJid || '';
+      console.log(`[Incoming Webhook] [${instanceName}] Event:`, eventData.event);
 
+      // Support all Evolution variations: messages.upsert, MESSAGES_UPSERT, etc.
+      const isMessageUpsert = !eventData.event || /messages[\._]upsert/i.test(eventData.event);
+
+      if (isMessageUpsert && eventData.data) {
+        // In some versions data is an array, in others it is an object
+        const msgObj = Array.isArray(eventData.data) ? eventData.data[0] : eventData.data;
+        const isFromMe = msgObj?.key?.fromMe;
+        const remoteJid = msgObj?.key?.remoteJid || '';
+
+        // Only reply to incoming messages from others, ignoring status broadcasts
         if (!isFromMe && !remoteJid.includes('@broadcast') && !remoteJid.includes('status@broadcast')) {
-          const userText = msg.message?.conversation || 
-                           msg.message?.extendedTextMessage?.text || 
-                           msg.message?.imageMessage?.caption || '';
+          const userText = msgObj?.message?.conversation || 
+                           msgObj?.message?.extendedTextMessage?.text || 
+                           msgObj?.message?.imageMessage?.caption || 
+                           msgObj?.message?.buttonsResponseMessage?.selectedButtonId || '';
 
           if (userText && userText.trim().length > 0) {
             console.log(`[WhatsApp Incoming] [${instanceName}] from ${remoteJid}: "${userText}"`);
 
             const botConfig = memoryConfigs[instanceName] || {};
+            const businessName = botConfig.businessName || instanceName.replace(/_/g, ' ') || 'Avadaspace Design LLC';
 
-            if (botConfig.enabled !== false) {
-              const systemPrompt = `You are a friendly, concise 24/7 AI assistant for ${botConfig.businessName || 'our business'}.\n\n` +
-                                   `BUSINESS INFORMATION & FAQS:\n${botConfig.faqs || 'We are a professional service provider. Answer questions politely.'}\n\n` +
-                                   `RULES:\n- Keep answers concise and helpful (under 2-3 sentences).`;
+            const systemPrompt = `You are a friendly, concise 24/7 AI assistant for ${businessName}.\n\n` +
+                                 `BUSINESS INFORMATION & FAQS:\n${botConfig.faqs || 'We are a professional service provider. Answer questions politely.'}\n\n` +
+                                 `RULES:\n- Keep answers concise and helpful (under 2-3 sentences).`;
 
-              const aiReply = await callOpenAI(
-                botConfig.openaiKey, 
-                systemPrompt, 
-                userText, 
-                botConfig.businessName, 
-                botConfig.faqs
-              );
+            const aiReply = await callOpenAI(
+              botConfig.openaiKey, 
+              systemPrompt, 
+              userText, 
+              businessName, 
+              botConfig.faqs
+            );
 
-              console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
+            console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
 
-              const phoneSender = remoteJid.split('@')[0];
-              const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-              const evoKey = botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+            const phoneSender = remoteJid.split('@')[0];
+            const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+            // Use header apikey if available, or saved config key, or default key
+            const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
-              await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
-                number: phoneSender.replace(/[^0-9]/g, ''),
-                text: aiReply,
-                delay: 1200
-              });
-            }
+            const sendRes = await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
+              number: phoneSender.replace(/[^0-9]/g, ''),
+              text: aiReply,
+              delay: 1200
+            });
+
+            console.log(`[WhatsApp Sent Status]:`, sendRes.status);
           }
         }
       }
