@@ -5,8 +5,7 @@ import { URL, URLSearchParams } from 'url';
 // Global in-memory storage for serverless runtime
 const memoryConfigs = {};
 
-// Multi-turn conversation history cache keyed by: `${instanceName}:${remoteJid}`
-// Stores up to the last 12 messages per customer
+// Multi-turn conversation history cache keyed by: `${instanceName}:${senderId}`
 const conversationHistories = {};
 
 function getCustomerHistory(instanceName, senderId) {
@@ -26,9 +25,8 @@ function addToHistory(instanceName, senderId, role, text) {
     role: role === 'user' ? 'user' : 'model',
     parts: [{ text: text }]
   });
-  // Keep only the most recent 12 turns (6 full back-and-forths)
-  if (conversationHistories[key].length > 12) {
-    conversationHistories[key] = conversationHistories[key].slice(-12);
+  if (conversationHistories[key].length > 14) {
+    conversationHistories[key] = conversationHistories[key].slice(-14);
   }
 }
 
@@ -70,67 +68,66 @@ function cleanMediaUrl(rawUrl) {
   return url;
 }
 
-// High-EQ, Human-Like Smart FAQ Fallback Engine
+// Smart Name & Greeting Extractor for zero-API fallback
 function generateSmartReply(userMessage, businessName, faqs) {
-  const msg = (userMessage || '').toLowerCase().trim();
-  const bName = businessName || 'our business';
+  const msg = (userMessage || '').trim();
+  const lower = msg.toLowerCase();
+  const bName = businessName || 'our team';
   const faqText = faqs || '';
 
-  // 1. Greetings
-  if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)/i.test(msg)) {
-    return `Hey there! 👋 Welcome to *${bName}*. How's your day going? Feel free to ask me anything about our services, pricing, or hours — I'm happy to help!`;
+  // 1. Name Introduction detection: "My name is X", "I am X", "I'm X", "This is X"
+  const nameMatch = msg.match(/(?:my name is|i am|i'm|this is|call me)\s+([A-Za-z]+)/i);
+  if (nameMatch && nameMatch[1]) {
+    const userName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+    return `Nice to meet you, ${userName}! 👋 Welcome to *${bName}*.\n\nHow can I help you today? Feel free to ask about our services, pricing, hours, or booking an appointment!`;
   }
 
-  // 2. Location / Address / Store Photo / Where
-  if (/(location|address|where|direction|city|map|store|office|shop)/i.test(msg)) {
+  // 2. Greetings
+  if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)$/i.test(lower)) {
+    return `Hey there! 👋 Welcome to *${bName}*. How can I help you today? Feel free to ask about our services, pricing, or hours!`;
+  }
+
+  // 3. Location / Address / Store Photo / Where
+  if (/(location|address|where|direction|city|map|store|office|shop)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map|office|city)/i.test(l));
     if (lines.length > 0) {
-      return `📍 *Our Location:*\n${lines.join('\n')}\n\nLet me know if you need help finding us or would like directions!`;
+      return `📍 *Our Location:*\n${lines.join('\n')}\n\nLet me know if you need driving directions or landmarks!`;
     }
-    return `📍 We are located at Main Office Suite 400. Let me know if you need driving directions or landmarks!`;
+    return `📍 We are located at Main Office Suite 400. Let me know if you need directions!`;
   }
 
-  // 3. Pricing / Cost / Rates / Catalog / Portfolio
-  if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|sample|package)/i.test(msg)) {
+  // 4. Pricing / Cost / Rates / Catalog / Portfolio
+  if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|sample|package)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
     if (lines.length > 0) {
-      return `💰 *Here is our pricing & services at ${bName}:*\n\n${lines.join('\n')}\n\nWhich of these best matches what you're looking for? 😊`;
+      return `💰 *Pricing & Services for ${bName}:*\n\n${lines.join('\n')}\n\nWhich of these can I help you with? 😊`;
     }
-    return `💰 Our packages typically range from $50 for consultations up to $150-$400 for complete projects. Tell me a bit about what you need, and I'll give you an exact estimate!`;
+    return `💰 Our packages typically range from $50 for consultations up to $150-$400 for complete projects. Let me know what you need!`;
   }
 
-  // 4. Hours / Timing / When open
-  if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(msg)) {
+  // 5. Hours / Timing / When open
+  if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(hour|timing|open|close|mon|tue|wed|thu|fri|sat|sun|am|pm)/i.test(l));
     if (lines.length > 0) {
-      return `🕒 *Business Hours for ${bName}:*\n\n${lines.join('\n')}\n\nFeel free to reach out or drop by during those times!`;
+      return `🕒 *Business Hours for ${bName}:*\n\n${lines.join('\n')}\n\nFeel free to reach out or drop by during these times!`;
     }
     return `🕒 We're open Monday to Saturday from 9:00 AM to 6:00 PM (Closed on Sundays).`;
   }
 
-  // 5. Booking / Appointment / Schedule
-  if (/(book|appointment|schedule|slot|reserve|visit)/i.test(msg)) {
+  // 6. Booking / Appointment / Schedule
+  if (/(book|appointment|schedule|slot|reserve|visit)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
     if (lines.length > 0) {
-      return `📅 *Ready to book with ${bName}?*\n\n${lines.join('\n')}\n\nOr just message me your preferred day and time, and we'll confirm it for you!`;
+      return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nOr reply with your preferred date and time, and we'll confirm it for you!`;
     }
-    return `📅 I'd love to get you scheduled! What day and time work best for you?`;
+    return `📅 I'd be happy to get you scheduled! What date and time work best for you?`;
   }
 
-  // 6. Contact / Human Support
-  if (/(contact|phone|call|number|human|agent|talk|emergency|person)/i.test(msg)) {
-    const lines = faqText.split('\n').filter(l => /(contact|call|emergency|phone|\d{3})/i.test(l));
-    if (lines.length > 0) {
-      return `📞 *Contact Details:*\n\n${lines.join('\n')}\n\nI've also notified our team so someone can assist you directly if needed!`;
-    }
-    return `📞 You can reach our team directly. I've noted this, and a team member will jump into this chat shortly!`;
-  }
-
-  // 7. General Human Fallback
+  // 7. General Fallback
   return `Thanks for reaching out to *${bName}*! 😊 I'm here to help. You can ask me about our *services*, *pricing*, *timings*, or *booking an appointment*. What can I assist you with?`;
 }
 
-// Google Gemini Flash AI Engine with Multi-Turn Memory & Humanized Persona
+// Google Gemini Flash AI Engine with Multi-Turn Memory & Persona
 function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, currentUserMessage, businessName, faqs) {
   return new Promise((resolve) => {
     const key = apiKey || process.env.GEMINI_API_KEY;
@@ -139,7 +136,6 @@ function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, curren
       return resolve(generateSmartReply(currentUserMessage, businessName, faqs));
     }
 
-    // Build the full multi-turn conversation payload for Gemini
     const contents = [
       ...(conversationHistory || []),
       {
@@ -155,14 +151,16 @@ function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, curren
       contents: contents,
       generationConfig: {
         maxOutputTokens: 300,
-        temperature: 0.72,
+        temperature: 0.7,
         topP: 0.95
       }
     });
 
+    // Try Gemini 1.5 Flash (fallback to Gemini 2.0 Flash)
+    const modelName = 'gemini-1.5-flash';
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+      path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -314,32 +312,29 @@ export default async function handler(req, res) {
             const botConfig = memoryConfigs[instanceName] || {};
             const businessName = botConfig.businessName || instanceName.replace(/_/g, ' ') || 'Our Business';
 
-            // Retrieve previous conversation context for this specific customer
+            // Retrieve customer chat history for multi-turn memory
             const history = getCustomerHistory(instanceName, senderPhone);
 
-            // Master Natural Persona & Context-Aware Prompt for Gemini
-            const systemPrompt = `You are a warm, genuine, and highly knowledgeable human assistant working directly for "${businessName}".
-Your goal is to converse naturally on WhatsApp with customers, providing personalized, helpful, and friendly answers.
+            // High-EQ Master Prompt for Gemini
+            const systemPrompt = `You are a warm, attentive, and highly professional human customer service assistant working directly for "${businessName}".
+Your goal is to converse naturally on WhatsApp, providing personalized, helpful, and memorable assistance.
 
-BUSINESS KNOWLEDGE, PRICING, HOURS & DETAILS:
+BUSINESS KNOWLEDGE & PRICING:
 ${botConfig.faqs || 'We are a dedicated professional business providing quality services. Help the customer with whatever they need.'}
 
-CORE BEHAVIOR RULES:
-1. Speak Like a Real Human:
-   - Talk naturally as a friendly team member, NOT like an automated robot or FAQ scraper.
-   - Do NOT repeat the exact same greeting or closing phrase in every single message.
-   - Vary your vocabulary and phrasing. Avoid robotic formulas like "As an AI..." or "Thank you for contacting X, how can I assist you today?".
-2. Multi-Turn Context Memory:
-   - Pay close attention to what the customer shared in previous turns (their name, project details, preferences, dates).
-   - If they ask a follow-up question (e.g. "How long does that take?" or "Can I book the second one?"), use the conversation history to understand exactly which service they are referring to.
-3. WhatsApp Formatting:
-   - Keep answers clear, conversational, and concise (typically 2 to 4 sentences).
-   - Use bullet points (•) and *bold* highlights when listing prices, features, or hours.
-   - Use 1-2 natural emojis (😊, 👋, 🕒, 💡) to make messages feel warm and modern.
-4. Accuracy & Helpfulness:
-   - Answer accurately based on the business details above.
-   - If a customer asks something not mentioned in the business info, politely let them know and offer to connect them with a specialist from the team.
-   - If the user is ready to book, guide them to the booking link or invite them to share their preferred time.`;
+ESSENTIAL RULES:
+1. Personalization & Name Recognition:
+   - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
+   - Use their name naturally in subsequent replies to build trust and connection.
+2. Context Memory:
+   - Remember details the customer shared earlier in the conversation (their name, project requirements, preferences, budget).
+   - If they ask a follow-up question ("how much is that?", "what about the other one?"), use the conversation history to understand exactly what they mean.
+3. Natural Human Tone:
+   - Sound like a real person typing on WhatsApp.
+   - Do NOT repeat the same robotic greeting or generic script in every message.
+   - Keep answers clear and concise (2-4 sentences). Use bullet points (•) and *bold* text for readability.
+4. Action:
+   - If the customer is interested in booking or contacting the team, provide the booking link or phone number from the business knowledge.`;
 
             // Call Google Gemini Flash with full conversation history
             const aiReply = await callGeminiWithHistory(
@@ -369,7 +364,6 @@ CORE BEHAVIOR RULES:
             } else if (/(price|pricing|catalog|catalogue|brochure|portfolio|sample|menu|photo|pic)/i.test(lowerMsg) && botConfig.catalogMediaUrl) {
               rawMedia = botConfig.catalogMediaUrl;
             } else if (/(hi|hello|hey|welcome|start)/i.test(lowerMsg) && botConfig.welcomeMediaUrl && history.length <= 2) {
-              // Send welcome media only on initial greeting
               rawMedia = botConfig.welcomeMediaUrl;
             }
 
@@ -426,17 +420,21 @@ CORE BEHAVIOR RULES:
       const userMessage = data.message || 'Hi';
       const history = data.history || [];
 
-      const systemPrompt = `You are a warm, genuine, and highly knowledgeable human assistant working directly for "${businessName}".
-Your goal is to converse naturally on WhatsApp with customers, providing personalized, helpful, and friendly answers.
+      const systemPrompt = `You are a warm, attentive, and highly professional human customer service assistant working directly for "${businessName}".
+Your goal is to converse naturally on WhatsApp, providing personalized, helpful, and memorable assistance.
 
-BUSINESS KNOWLEDGE, PRICING, HOURS & DETAILS:
+BUSINESS KNOWLEDGE & PRICING:
 ${data.faqs || 'We are a dedicated professional business providing quality services.'}
 
-CORE BEHAVIOR RULES:
-1. Talk naturally as a friendly human team member, NOT like an automated robot.
-2. Vary your vocabulary and phrasing. Avoid repetitive robotic greetings.
-3. Multi-Turn Context: Remember and reference what the user said in earlier messages.
-4. Keep replies conversational, clear, and concise (2-4 sentences).`;
+ESSENTIAL RULES:
+1. Personalization & Name Recognition:
+   - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
+   - Use their name naturally in subsequent replies to build trust.
+2. Context Memory:
+   - Remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
+3. Natural Human Tone:
+   - Sound like a real person typing on WhatsApp. Do not repeat the same robotic greeting or closing script.
+   - Keep answers conversational, clear, and concise (2-4 sentences).`;
 
       const reply = await callGeminiWithHistory(
         data.geminiKey, 
