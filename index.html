@@ -679,8 +679,13 @@
           
           <!-- Column 1: Bot Prompt & Settings Form -->
           <div class="dash-card">
-            <h2>🤖 Configure Your 24/7 AI Bot</h2>
-            <p class="card-desc">Powered by <b>Google Gemini Flash AI ⚡</b> (Free, ultra-fast & human-like responses).</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h2 style="margin-bottom: 0;">🤖 Configure Your 24/7 AI Bot</h2>
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 9999px;">
+                <span class="dot-live" style="background: #22c55e;"></span> Always Active 24/7
+              </span>
+            </div>
+            <p class="card-desc">Powered by <b>Google Gemini Flash AI ⚡</b> (Always live — responds automatically to all incoming WhatsApp messages).</p>
 
             <form id="bot-config-form" onsubmit="saveBotConfig(event)">
               <div class="input-group">
@@ -1076,10 +1081,23 @@ How can we help you today? You can ask about:
       app.style.display = 'flex';
 
       document.getElementById('dash-user-name').innerText = session.name || 'User';
+      document.getElementById('dash-phone-display').innerText = session.phone || 'Connected WhatsApp Number';
       document.getElementById('dash-instance-id').innerText = session.instanceName;
       document.getElementById('cfg-business-name').value = session.name || 'My Business';
       document.getElementById('chat-preview-title').innerText = `${session.name || 'AI'} Assistant`;
 
+      // Restore from localStorage first for instant display
+      try {
+        const localCfg = JSON.parse(localStorage.getItem('botflow_customizer_config') || '{}');
+        if (localCfg.businessName) document.getElementById('cfg-business-name').value = localCfg.businessName;
+        if (localCfg.geminiKey) document.getElementById('cfg-gemini-key').value = localCfg.geminiKey;
+        if (localCfg.faqs) document.getElementById('cfg-faqs').value = localCfg.faqs;
+        if (localCfg.catalogMediaUrl) document.getElementById('cfg-catalog-media').value = localCfg.catalogMediaUrl;
+        if (localCfg.welcomeMediaUrl) document.getElementById('cfg-welcome-media').value = localCfg.welcomeMediaUrl;
+        if (localCfg.locationMediaUrl) document.getElementById('cfg-location-media').value = localCfg.locationMediaUrl;
+      } catch (e) {}
+
+      // Fetch latest from server
       try {
         const res = await fetch(`/api/bot-config?instance=${encodeURIComponent(session.instanceName)}`);
         const cfg = await res.json();
@@ -1116,6 +1134,13 @@ How can we help you today? You can ask about:
       const welcomeMediaUrl = document.getElementById('cfg-welcome-media')?.value.trim() || '';
       const locationMediaUrl = document.getElementById('cfg-location-media')?.value.trim() || '';
       const btn = document.getElementById('save-cfg-btn');
+
+      // Save to localStorage
+      try {
+        localStorage.setItem('botflow_customizer_config', JSON.stringify({
+          businessName, geminiKey, faqs, catalogMediaUrl, welcomeMediaUrl, locationMediaUrl
+        }));
+      } catch (e) {}
 
       btn.disabled = true;
       btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Activating Gemini AI Bot...`;

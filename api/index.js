@@ -2,8 +2,50 @@ import https from 'https';
 import http from 'http';
 import { URL, URLSearchParams } from 'url';
 
-// Global in-memory storage for serverless runtime
-const memoryConfigs = {};
+// Default persistent configurations for client instances (survives cold starts & server restarts)
+const persistentDefaults = {
+  'avadaspace_design_llc_shaguny123_412': {
+    instanceName: 'avadaspace_design_llc_shaguny123_412',
+    businessName: 'Avadaspace Design LLC',
+    faqs: `- Business Name: Avadaspace Design LLC
+- Business Hours: Mon-Sat 9:00 AM - 6:00 PM (Closed on Sundays)
+- Services & Pricing:
+  * Consultation & Assessment: $50
+  * Full Design Package: $150 - $400
+  * Custom Development: $300+
+- Location & Address: Main Office Suite 400
+- Booking Link: Reply here to reserve an appointment
+- Emergency Contact: Call (555) 019-2834`,
+    locationMediaUrl: 'https://lh3.googleusercontent.com/d/1O5vQRbxIT259y1wDCE1-JPjQ34dLtsry',
+    catalogMediaUrl: '',
+    welcomeMediaUrl: '',
+    enabled: true
+  }
+};
+
+// Global in-memory storage for serverless runtime initialized with persistent defaults
+const memoryConfigs = { ...persistentDefaults };
+
+function getEffectiveConfig(instanceName) {
+  if (memoryConfigs[instanceName]) return memoryConfigs[instanceName];
+  if (persistentDefaults[instanceName]) return persistentDefaults[instanceName];
+  
+  // Clean fallback for any newly created instance
+  const cleanName = (instanceName || 'Our Business')
+    .replace(/_[a-z0-9]+_\d+$/i, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase());
+
+  return {
+    instanceName: instanceName || 'default',
+    businessName: cleanName,
+    faqs: `- Business Name: ${cleanName}
+- Business Hours: Mon-Sat 9:00 AM - 6:00 PM (Closed on Sundays)
+- Services: Professional services and consultations
+- Booking: Reply here to schedule an appointment`,
+    enabled: true
+  };
+}
 
 // Multi-turn conversation history cache keyed by: `${instanceName}:${senderId}`
 const conversationHistories = {};
@@ -120,7 +162,7 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
     }
   }
 
-  // 3. Conversational Acknowledgements: "okay", "sure", "alright", "yes"
+  // 3. Conversational Acknowledgements
   if (/^(ok|okay|k|sure|alright|all right|yes|yeah|yep|cool|sounds good|got it|done|perfect|great)$/i.test(lower)) {
     if (/(book|date|time|appointment|schedule|slot)/i.test(lastBotMsg)) {
       return `Awesome${nameTag}! What day and time works best for you? (e.g., Monday at 3:00 PM). Let me know and I'll confirm it for you! 😊`;
@@ -128,7 +170,7 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
     return `Great${nameTag}! Let me know what you'd like to do next or if you have any questions about our services!`;
   }
 
-  // 4. Thank you / Appreciation
+  // 4. Thank you
   if (/(thank|thanks|thx|appreciate|grateful)/i.test(lower)) {
     return `You're very welcome${nameTag}! 😊 Feel free to message anytime if you need anything else. Have a wonderful day!`;
   }
@@ -240,8 +282,7 @@ async function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, 
     { version: 'v1beta', model: 'gemini-2.5-pro' },
     { version: 'v1beta', model: 'gemini-1.5-flash-8b' },
     { version: 'v1beta', model: 'gemini-1.5-flash-002' },
-    { version: 'v1beta', model: 'gemini-1.5-pro-002' },
-    { version: 'v1beta', model: 'gemini-2.0-flash-001' }
+    { version: 'v1beta', model: 'gemini-1.5-pro-002' }
   ];
 
   for (const { version, model } of attempts) {
@@ -415,8 +456,9 @@ export default async function handler(req, res) {
             const senderPhone = remoteJid.split('@')[0].replace(/[^0-9]/g, '');
             console.log(`[WhatsApp Incoming] [${instanceName}] from ${senderPhone}: "${userText}"`);
 
-            const botConfig = memoryConfigs[instanceName] || {};
-            const businessName = botConfig.businessName || instanceName.replace(/_/g, ' ') || 'Our Business';
+            // Retrieve persistent bot configuration for this instance
+            const botConfig = getEffectiveConfig(instanceName);
+            const businessName = botConfig.businessName || 'Our Business';
 
             // Retrieve customer chat history for multi-turn memory
             const history = getCustomerHistory(instanceName, senderPhone);
@@ -431,7 +473,7 @@ ${botConfig.faqs || 'We are a dedicated professional business providing quality 
 ESSENTIAL RULES:
 1. Real Human Scheduling & Awareness:
    - Check user requests against our business hours (e.g. Mon-Sat 9:00 AM - 6:00 PM, Closed Sundays).
-   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could you do Monday or another weekday instead?"
+   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could we do Monday or another weekday instead?"
    - Never dump raw FAQ text or robotic lists when a simple conversational reply is needed.
 2. Personalization & Name Recognition:
    - When the customer shares their name, warmly address them by their name.
@@ -440,7 +482,7 @@ ESSENTIAL RULES:
    - Keep answers clear, conversational, and concise (typically 2 to 4 sentences).
    - Use bullet points (•) and *bold* text for readability.`;
 
-            // Call Google Gemini Flash with multi-model fallback and multi-turn history
+            // Call Google Gemini Flash with full conversation history
             const aiReply = await callGeminiWithHistory(
               botConfig.geminiKey,
               systemPrompt,
@@ -505,6 +547,7 @@ ESSENTIAL RULES:
       const data = await getBody(req);
       if (data.instanceName) {
         memoryConfigs[data.instanceName] = { ...(memoryConfigs[data.instanceName] || {}), ...data };
+        persistentDefaults[data.instanceName] = { ...(persistentDefaults[data.instanceName] || {}), ...data };
         return sendJson(res, 200, { success: true, config: memoryConfigs[data.instanceName] });
       }
       return sendJson(res, 400, { error: 'instanceName is required' });
@@ -512,8 +555,8 @@ ESSENTIAL RULES:
 
     // 4. Get Bot Configuration: GET /api/bot-config?instance=...
     if (action === 'bot-config' && req.method === 'GET') {
-      const instanceName = parsedUrl.searchParams.get('instance');
-      const config = memoryConfigs[instanceName] || {};
+      const instanceName = parsedUrl.searchParams.get('instance') || 'default';
+      const config = getEffectiveConfig(instanceName);
       return sendJson(res, 200, config);
     }
 
@@ -533,7 +576,7 @@ ${data.faqs || 'We are a dedicated professional business providing quality servi
 ESSENTIAL RULES:
 1. Real Human Scheduling & Awareness:
    - Check user requests against our business hours (e.g. Mon-Sat 9:00 AM - 6:00 PM, Closed Sundays).
-   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could you do Monday or another weekday instead?"
+   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could we do Monday or another weekday instead?"
    - Never dump raw FAQ text or robotic lists when a simple conversational reply is needed.
 2. Personalization & Name Recognition:
    - When the customer shares their name, warmly address them by their name.
