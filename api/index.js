@@ -30,31 +30,31 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-// Built-in Smart FAQ Engine Fallback
+// Built-in Smart FAQ Engine Fallback (Humanized & Warm)
 function generateSmartReply(userMessage, businessName, faqs) {
   const msg = (userMessage || '').toLowerCase().trim();
-  const bName = businessName || 'our business';
+  const bName = businessName || 'our team';
   const faqText = faqs || '';
 
   // 1. Greetings
   if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)/i.test(msg)) {
-    return `👋 Hello! Welcome to ${bName}.\n\nHow can we help you today? You can ask about:\n• 🕒 Business Hours\n• 💰 Services & Pricing\n• 📍 Location / Address\n• 📅 Booking an Appointment`;
+    return `👋 Hello! Thanks for reaching out to *${bName}*. I'm happy to assist you!\n\nHow can I help you today? You can ask me about:\n• 💰 *Services & Pricing*\n• 🕒 *Working Hours*\n• 📍 *Our Location*\n• 📅 *Booking an Appointment*`;
   }
 
-  // 2. Pricing / Cost / Rates
-  if (/(price|pricing|cost|how\s*much|rate|charges|fee)/i.test(msg)) {
-    const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate)/i.test(l));
+  // 2. Pricing / Cost / Rates / Catalog / Photos
+  if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|photo|pic|video)/i.test(msg)) {
+    const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
     if (lines.length > 0) {
-      return `💰 *${bName} - Pricing & Services:*\n\n${lines.join('\n')}\n\nWould you like to book an appointment?`;
+      return `💰 *Here are the pricing & services for ${bName}:*\n\n${lines.join('\n')}\n\nWould you like me to help you book a slot or answer any specific questions? 😊`;
     }
-    return `💰 Here are our standard service rates at ${bName}:\n• Routine Consultation: $30\n• Service Package: $60 - $150\n\nLet us know which service you need!`;
+    return `💰 Here is our general service pricing at *${bName}*:\n• Consultation & Assessment: $50\n• Complete Package: $150 - $400\n\nLet me know if you would like more details on any service!`;
   }
 
   // 3. Hours / Timing / When open
-  if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday)/i.test(msg)) {
+  if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(hour|timing|open|close|mon|tue|wed|thu|fri|sat|sun|am|pm)/i.test(l));
     if (lines.length > 0) {
-      return `🕒 *Business Hours for ${bName}:*\n\n${lines.join('\n')}`;
+      return `🕒 *Business Hours for ${bName}:*\n\n${lines.join('\n')}\n\nFeel free to drop by or schedule an appointment during these times!`;
     }
     return `🕒 We are open Monday to Saturday from 9:00 AM to 6:00 PM (Closed on Sundays).`;
   }
@@ -63,27 +63,27 @@ function generateSmartReply(userMessage, businessName, faqs) {
   if (/(book|appointment|schedule|slot|reserve|visit)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
     if (lines.length > 0) {
-      return `📅 *Book an Appointment with ${bName}:*\n\n${lines.join('\n')}`;
+      return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nAlternatively, reply with your preferred date and time, and our team will confirm it for you!`;
     }
-    return `📅 You can book an appointment with ${bName} anytime! Please reply with your preferred date & time.`;
+    return `📅 We would love to schedule you in! Please reply with your preferred date & time, and our team will book your slot right away.`;
   }
 
   // 5. Location / Address / Where
   if (/(location|address|where|direction|city|map)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map)/i.test(l));
     if (lines.length > 0) {
-      return `📍 *Our Location:*\n\n${lines.join('\n')}`;
+      return `📍 *Our Location:*\n\n${lines.join('\n')}\n\nLet us know if you need assistance with directions!`;
     }
-    return `📍 We are located at 124 Main Street, Suite 400. Let us know if you need directions!`;
+    return `📍 We are located at Main Office Suite 400. Let us know if you need driving directions!`;
   }
 
   // 6. Contact / Phone / Emergency / Human
-  if (/(contact|phone|call|number|human|agent|talk|emergency)/i.test(msg)) {
+  if (/(contact|phone|call|number|human|agent|talk|emergency|person)/i.test(msg)) {
     const lines = faqText.split('\n').filter(l => /(contact|call|emergency|phone|\d{3})/i.test(l));
     if (lines.length > 0) {
-      return `📞 *Contact Info:*\n\n${lines.join('\n')}`;
+      return `📞 *Contact Information:*\n\n${lines.join('\n')}\n\nA representative is also notified and can reply to this chat shortly!`;
     }
-    return `📞 You can reach our support team directly. A staff member will also reply to this chat shortly!`;
+    return `📞 You can reach our team directly. A team member has also been notified and will jump into this chat shortly!`;
   }
 
   // 7. Keyword Search in Custom FAQ
@@ -91,15 +91,15 @@ function generateSmartReply(userMessage, businessName, faqs) {
   for (const word of words) {
     const matchedLines = faqText.split('\n').filter(l => l.toLowerCase().includes(word));
     if (matchedLines.length > 0) {
-      return `ℹ️ *${bName} Information:*\n\n${matchedLines.slice(0, 4).join('\n')}`;
+      return `ℹ️ *Information about ${bName}:*\n\n${matchedLines.slice(0, 4).join('\n')}\n\nLet me know if you need anything else!`;
     }
   }
 
-  // 8. General Fallback
-  return `Thank you for contacting ${bName}! 😊\n\nWe received your message. You can ask me about our *pricing*, *business hours*, *location*, or *booking an appointment*. A team member will also follow up with you shortly!`;
+  // 8. General Human Fallback
+  return `Thank you for messaging *${bName}*! 😊\n\nI've received your inquiry. You can ask me about our *pricing*, *services*, *hours*, *location*, or *booking an appointment*. A team member will also follow up with you shortly!`;
 }
 
-// Google Gemini Flash AI Engine
+// Google Gemini Flash AI Engine (Humanized & Natural)
 function callGemini(apiKey, systemPrompt, userMessage, businessName, faqs) {
   return new Promise((resolve) => {
     const key = apiKey || process.env.GEMINI_API_KEY;
@@ -119,8 +119,9 @@ function callGemini(apiKey, systemPrompt, userMessage, businessName, faqs) {
         }
       ],
       generationConfig: {
-        maxOutputTokens: 250,
-        temperature: 0.6
+        maxOutputTokens: 280,
+        temperature: 0.65,
+        topP: 0.95
       }
     });
 
@@ -156,7 +157,19 @@ function callGemini(apiKey, systemPrompt, userMessage, businessName, faqs) {
   });
 }
 
-// Forward request to Evolution API
+// Helper to detect media type from URL extension
+function getMediaTypeAndMime(url) {
+  const clean = url.split('?')[0].toLowerCase();
+  if (clean.endsWith('.mp4') || clean.endsWith('.mov') || clean.endsWith('.avi')) {
+    return { mediatype: 'video', mimetype: 'video/mp4' };
+  }
+  if (clean.endsWith('.pdf')) {
+    return { mediatype: 'document', mimetype: 'application/pdf' };
+  }
+  return { mediatype: 'image', mimetype: 'image/jpeg' };
+}
+
+// Forward request to Evolution API (Handles both Text & Media)
 function forwardToEvolution(targetUrl, apiKey, method, pathWithQuery, bodyData) {
   return new Promise((resolve) => {
     try {
@@ -265,13 +278,18 @@ export default async function handler(req, res) {
             const botConfig = memoryConfigs[instanceName] || {};
             const businessName = botConfig.businessName || instanceName.replace(/_/g, ' ') || 'Our Business';
 
-            const systemPrompt = `You are a polite, helpful 24/7 AI customer service assistant for "${businessName}".\n\n` +
-                                 `BUSINESS INFORMATION, PRICING & FAQS:\n${botConfig.faqs || 'We provide professional services. Assist the user with their inquiry.'}\n\n` +
-                                 `INSTRUCTIONS:\n` +
-                                 `- Answer customer questions using the business information provided above.\n` +
-                                 `- Keep answers concise, natural, and friendly (1-3 sentences).\n` +
-                                 `- If the user asks to book or contact human support, provide the relevant booking link or phone number from the FAQs.\n` +
-                                 `- Do not make up prices or information not provided in the business details.`;
+            // High-EQ, Human-Like System Prompt for Gemini
+            const systemPrompt = `You are a warm, courteous, and highly competent customer support concierge for "${businessName}".
+Your goal is to assist clients naturally on WhatsApp, answering questions clearly and building rapport.
+
+BUSINESS DETAILS, PRICING & FAQS:
+${botConfig.faqs || 'We are a dedicated professional business providing quality services. Help the customer with whatever they need.'}
+
+CONVERSATION GUIDELINES:
+1. Tone: Friendly, polite, professional, and conversational (use a warm greeting and 1-2 natural emojis like 👋, 😊, 🕒).
+2. WhatsApp Format: Keep replies concise (2-4 sentences). Use bullet points (•) for lists and *bold* for key terms like prices or dates.
+3. Accuracy: Base answers strictly on the business details provided above. If an inquiry is not covered, politely state that you've noted it and a team member will assist them shortly.
+4. Action-Oriented: If the user wants to book or buy, direct them to the booking link or phone number provided in the FAQs.`;
 
             // Call Google Gemini Flash AI (with built-in Smart FAQ fallback)
             const aiReply = await callGemini(
@@ -284,17 +302,42 @@ export default async function handler(req, res) {
 
             console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
 
-            const phoneSender = remoteJid.split('@')[0];
+            const phoneSender = remoteJid.split('@')[0].replace(/[^0-9]/g, '');
             const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
             const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
-            const sendRes = await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
-              number: phoneSender.replace(/[^0-9]/g, ''),
-              text: aiReply,
-              delay: 1200
-            });
+            // Media attachment detection (Catalog, Photos, Videos, Map)
+            const lowerMsg = userText.toLowerCase();
+            let mediaToSend = null;
 
-            console.log(`[WhatsApp Sent Status]:`, sendRes.status);
+            if (/(price|pricing|catalog|catalogue|brochure|portfolio|photo|picture|sample|menu)/i.test(lowerMsg) && botConfig.catalogMediaUrl) {
+              mediaToSend = botConfig.catalogMediaUrl;
+            } else if (/(location|address|map|where|store|office)/i.test(lowerMsg) && botConfig.locationMediaUrl) {
+              mediaToSend = botConfig.locationMediaUrl;
+            } else if (/(hi|hello|hey|welcome|start)/i.test(lowerMsg) && botConfig.welcomeMediaUrl) {
+              mediaToSend = botConfig.welcomeMediaUrl;
+            }
+
+            if (mediaToSend) {
+              const { mediatype, mimetype } = getMediaTypeAndMime(mediaToSend);
+              console.log(`[Sending Media] ${mediatype} from ${mediaToSend}`);
+              
+              await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendMedia/${encodeURIComponent(instanceName)}`, {
+                number: phoneSender,
+                mediatype,
+                mimetype,
+                caption: aiReply,
+                media: mediaToSend,
+                fileName: `attachment.${mediatype === 'document' ? 'pdf' : (mediatype === 'video' ? 'mp4' : 'jpg')}`
+              });
+            } else {
+              // Standard Text Message
+              await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
+                number: phoneSender,
+                text: aiReply,
+                delay: 1000
+              });
+            }
           }
         }
       }
@@ -323,9 +366,9 @@ export default async function handler(req, res) {
     if (action === 'test-chat' && req.method === 'POST') {
       const data = await getBody(req);
       const businessName = data.businessName || 'Our Business';
-      const systemPrompt = `You are a polite, helpful 24/7 AI customer service assistant for "${businessName}".\n\n` +
-                           `BUSINESS INFORMATION, PRICING & FAQS:\n${data.faqs || 'We provide professional services.'}\n\n` +
-                           `INSTRUCTIONS:\n- Answer concisely and politely (1-3 sentences).`;
+      const systemPrompt = `You are a warm, courteous, and highly competent customer support concierge for "${businessName}". Answer the customer in a friendly, conversational WhatsApp format (2-3 sentences).
+BUSINESS INFORMATION & FAQS:
+${data.faqs || 'We provide professional services.'}`;
 
       const reply = await callGemini(
         data.geminiKey, 
@@ -337,7 +380,7 @@ export default async function handler(req, res) {
       return sendJson(res, 200, { reply });
     }
 
-    return sendJson(res, 200, { status: 'BotFlow Gemini AI Engine Live' });
+    return sendJson(res, 200, { status: 'BotFlow Gemini AI + Media Engine Live' });
 
   } catch (err) {
     return sendJson(res, 500, { error: err.message });

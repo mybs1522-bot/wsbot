@@ -708,6 +708,28 @@
                 <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Gemini AI intelligently answers customer questions using these details!</span>
               </div>
 
+              <!-- Media Attachments (Photos / Videos / PDFs) -->
+              <div style="background: #0f172a; border: 1px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 14px; text-align: left;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                  <span>📸 WhatsApp Media Attachments (Optional)</span>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                  <label style="font-size: 0.7rem;">Pricing / Catalog Photo or PDF URL</label>
+                  <input type="url" id="cfg-catalog-media" class="input-field" style="font-size: 0.82rem; padding: 8px 12px;" placeholder="https://example.com/catalog.jpg (or .pdf / .mp4)" />
+                  <span style="font-size: 0.68rem; color: #64748b; margin-top: 2px; display: block;">Sent automatically when customer asks for pricing, catalog, or samples.</span>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                  <label style="font-size: 0.7rem;">Welcome Banner / Intro Video URL</label>
+                  <input type="url" id="cfg-welcome-media" class="input-field" style="font-size: 0.82rem; padding: 8px 12px;" placeholder="https://example.com/banner.jpg (or .mp4)" />
+                  <span style="font-size: 0.68rem; color: #64748b; margin-top: 2px; display: block;">Sent automatically when a customer says "Hi".</span>
+                </div>
+                <div class="input-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.7rem;">Location Map / Store Photo URL</label>
+                  <input type="url" id="cfg-location-media" class="input-field" style="font-size: 0.82rem; padding: 8px 12px;" placeholder="https://example.com/map.jpg" />
+                  <span style="font-size: 0.68rem; color: #64748b; margin-top: 2px; display: block;">Sent automatically when customer asks for address/location.</span>
+                </div>
+              </div>
+
               <button type="submit" id="save-cfg-btn" class="btn">
                 <span>Save & Activate Gemini AI Bot</span>
                 <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -1059,6 +1081,9 @@ How can we help you today? You can ask about:
         if (cfg.businessName) document.getElementById('cfg-business-name').value = cfg.businessName;
         if (cfg.geminiKey) document.getElementById('cfg-gemini-key').value = cfg.geminiKey;
         if (cfg.faqs) document.getElementById('cfg-faqs').value = cfg.faqs;
+        if (cfg.catalogMediaUrl) document.getElementById('cfg-catalog-media').value = cfg.catalogMediaUrl;
+        if (cfg.welcomeMediaUrl) document.getElementById('cfg-welcome-media').value = cfg.welcomeMediaUrl;
+        if (cfg.locationMediaUrl) document.getElementById('cfg-location-media').value = cfg.locationMediaUrl;
       } catch (e) {}
 
       clearInterval(dashboardPoll);
@@ -1082,6 +1107,9 @@ How can we help you today? You can ask about:
       const businessName = document.getElementById('cfg-business-name').value.trim();
       const geminiKey = document.getElementById('cfg-gemini-key').value.trim();
       const faqs = document.getElementById('cfg-faqs').value.trim();
+      const catalogMediaUrl = document.getElementById('cfg-catalog-media')?.value.trim() || '';
+      const welcomeMediaUrl = document.getElementById('cfg-welcome-media')?.value.trim() || '';
+      const locationMediaUrl = document.getElementById('cfg-location-media')?.value.trim() || '';
       const btn = document.getElementById('save-cfg-btn');
 
       btn.disabled = true;
@@ -1096,6 +1124,9 @@ How can we help you today? You can ask about:
             businessName,
             geminiKey,
             faqs,
+            catalogMediaUrl,
+            welcomeMediaUrl,
+            locationMediaUrl,
             serverUrl: server,
             serverKey: key,
             enabled: true
