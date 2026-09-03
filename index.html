@@ -1115,6 +1115,11 @@ How can we help you today? You can ask about:
         if (localCfg.locationMediaUrl) document.getElementById('cfg-location-media').value = localCfg.locationMediaUrl;
       } catch (e) {}
 
+      // Automatically sync and activate on the server immediately on page load!
+      setTimeout(() => {
+        saveBotConfigSilent();
+      }, 500);
+
       // Fetch latest from server
       try {
         const res = await fetch(`/api/bot-config?instance=${encodeURIComponent(session.instanceName)}`);
