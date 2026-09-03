@@ -233,14 +233,15 @@ async function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, 
     }
   });
 
-  // Try robust combinations: v1beta and v1 across flash-latest, flash, 2.0-flash, pro
+  // Try robust combinations recommended by Google Generative AI API
   const attempts = [
-    { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
-    { version: 'v1',     model: 'gemini-1.5-flash' },
-    { version: 'v1beta', model: 'gemini-2.0-flash' },
-    { version: 'v1beta', model: 'gemini-2.0-flash-exp' },
-    { version: 'v1beta', model: 'gemini-1.5-pro' },
-    { version: 'v1',     model: 'gemini-pro' }
+    { version: 'v1beta', model: 'gemini-3.6-flash' },
+    { version: 'v1beta', model: 'gemini-2.5-flash' },
+    { version: 'v1beta', model: 'gemini-2.5-pro' },
+    { version: 'v1beta', model: 'gemini-1.5-flash-8b' },
+    { version: 'v1beta', model: 'gemini-1.5-flash-002' },
+    { version: 'v1beta', model: 'gemini-1.5-pro-002' },
+    { version: 'v1beta', model: 'gemini-2.0-flash-001' }
   ];
 
   for (const { version, model } of attempts) {
@@ -358,12 +359,12 @@ export default async function handler(req, res) {
       });
 
       const tests = [
-        { version: 'v1beta', model: 'gemini-1.5-flash' },
-        { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
-        { version: 'v1beta', model: 'gemini-2.0-flash' },
-        { version: 'v1beta', model: 'gemini-2.0-flash-exp' },
-        { version: 'v1',     model: 'gemini-1.5-flash' },
-        { version: 'v1',     model: 'gemini-pro' }
+        { version: 'v1beta', model: 'gemini-3.6-flash' },
+        { version: 'v1beta', model: 'gemini-2.5-flash' },
+        { version: 'v1beta', model: 'gemini-2.5-pro' },
+        { version: 'v1beta', model: 'gemini-1.5-flash-8b' },
+        { version: 'v1beta', model: 'gemini-1.5-flash-002' },
+        { version: 'v1beta', model: 'gemini-1.5-pro-002' }
       ];
 
       const results = {};
