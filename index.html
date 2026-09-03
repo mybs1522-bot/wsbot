@@ -49,7 +49,7 @@
       border-radius: 24px;
       padding: 36px;
       width: 100%;
-      max-width: 480px;
+      max-width: 500px;
       text-align: center;
       box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
       position: relative;
@@ -504,19 +504,12 @@
       cursor: pointer;
     }
 
-    .server-settings-toggle {
-      margin-top: 20px;
-      font-size: 0.78rem;
-      color: #64748b;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
-    .server-settings {
-      display: none;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px dashed var(--card-border);
+    .server-settings-box {
+      margin-top: 18px;
+      padding: 14px;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
       text-align: left;
     }
   </style>
@@ -558,22 +551,25 @@
             <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Include country code without '+' or spaces</span>
           </div>
 
+          <!-- Evolution VPS Config -->
+          <div class="server-settings-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; text-transform: uppercase;">Evolution VPS Settings</span>
+            </div>
+            <div class="input-group" style="margin-bottom: 8px;">
+              <label style="font-size: 0.7rem;">Evolution API Server URL</label>
+              <input type="text" id="server-url-input" class="input-field" style="font-size: 0.8rem; padding: 8px 12px;" value="https://evolution-api-2gki.srv1722699.hstgr.cloud" required />
+            </div>
+            <div class="input-group" style="margin-bottom: 0;">
+              <label style="font-size: 0.7rem;">Evolution Global API Key</label>
+              <input type="text" id="server-key-input" class="input-field" style="font-size: 0.8rem; padding: 8px 12px;" value="429683C4C977415CAAFCCE10F7D57E11" required />
+            </div>
+          </div>
+
           <button type="submit" id="signup-btn" class="btn">
             <span id="btn-text">Get 8-Digit Pairing Code</span>
             <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
           </button>
-
-          <div class="server-settings-toggle" onclick="toggleSettings()">⚙️ Server & API Key Settings</div>
-          <div id="server-settings" class="server-settings">
-            <div class="input-group">
-              <label>Evolution API Server</label>
-              <input type="text" id="server-url-input" class="input-field" value="http://localhost:8085" />
-            </div>
-            <div class="input-group">
-              <label>API Key</label>
-              <input type="text" id="server-key-input" class="input-field" value="429683C4C977415CAAFCCE10F7D57E11" />
-            </div>
-          </div>
         </form>
       </div>
 
@@ -797,14 +793,27 @@ How can we help you today? You can ask about:
     let dashboardPoll = null;
 
     function getServerConfig() {
-      const server = localStorage.getItem('evo_server') || "http://localhost:8085";
+      const server = localStorage.getItem('evo_server') || "https://evolution-api-2gki.srv1722699.hstgr.cloud";
       const key = localStorage.getItem('evo_key') || "429683C4C977415CAAFCCE10F7D57E11";
       return { server, key };
     }
 
-    function toggleSettings() {
-      const el = document.getElementById('server-settings');
-      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    // Proxy helper for Evolution API calls to avoid CORS / Mixed Content
+    async function callEvolution(path, method = 'GET', body = null) {
+      const { server, key } = getServerConfig();
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-evo-server': server,
+        'x-evo-key': key
+      };
+
+      const res = await fetch(`/api/evo${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : null
+      });
+
+      return await res.json();
     }
 
     function getSession() {
@@ -849,8 +858,8 @@ How can we help you today? You can ask about:
 
     window.addEventListener('DOMContentLoaded', async () => {
       const { server, key } = getServerConfig();
-      document.getElementById('server-url-input').value = server;
-      document.getElementById('server-key-input').value = key;
+      if (document.getElementById('server-url-input')) document.getElementById('server-url-input').value = server;
+      if (document.getElementById('server-key-input')) document.getElementById('server-key-input').value = key;
 
       const session = getSession();
       if (session && session.instanceName) {
@@ -886,56 +895,56 @@ How can we help you today? You can ask about:
       const cleanEmail = email.toLowerCase().split('@')[0].replace(/[^a-z0-9]/g, '_');
       const randomId = Math.floor(100 + Math.random() * 900);
       const instanceName = `${cleanName}_${cleanEmail}_${randomId}`;
-      const currentHost = window.location.origin.includes('localhost') ? 'http://localhost:3000' : window.location.origin;
-      const webhookUrl = `${currentHost}/api/webhook/ai-agent/${instanceName}`;
+      const webhookUrl = `${window.location.origin}/api/webhook/ai-agent/${instanceName}`;
 
       saveSession({ name, email, phone, instanceName, webhookUrl });
 
       btn.disabled = true;
-      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Initializing...`;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Provisioning on Evolution...`;
 
       try {
-        await fetch(`${server}/instance/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': key },
-          body: JSON.stringify({
-            instanceName: instanceName,
-            integration: 'WHATSAPP-BAILEYS',
-            number: connectMode === 'phone' ? phone : undefined
-          })
+        // 1. Create Evolution Instance via Proxy
+        const createRes = await callEvolution('/instance/create', 'POST', {
+          instanceName: instanceName,
+          integration: 'WHATSAPP-BAILEYS',
+          number: connectMode === 'phone' ? phone : undefined
         });
 
-        await fetch(`${server}/webhook/set/${encodeURIComponent(instanceName)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': key },
-          body: JSON.stringify({
-            webhook: {
-              enabled: true,
-              url: webhookUrl,
-              byEvents: false,
-              base64: false,
-              events: ["MESSAGES_UPSERT"]
-            }
-          })
+        if (createRes.error || (createRes.status && createRes.status >= 400)) {
+          throw new Error(createRes.response?.message || createRes.error || 'Check Evolution API Key or URL');
+        }
+
+        // 2. Automatically bind AI Webhook with MESSAGES_UPSERT
+        await callEvolution(`/webhook/set/${encodeURIComponent(instanceName)}`, 'POST', {
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            byEvents: false,
+            base64: false,
+            events: ["MESSAGES_UPSERT"]
+          }
         });
 
+        // 3. Save initial bot config
         await fetch('/api/bot-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             instanceName,
             businessName: name,
-            faqs: document.getElementById('cfg-faqs')?.value || 'We are a professional business.'
+            faqs: document.getElementById('cfg-faqs')?.value || 'We are a professional business.',
+            serverUrl: server,
+            serverKey: key
           })
         });
 
         if (connectMode === 'phone') {
           showAuthView('pairing-view');
           document.getElementById("pairing-greeting").innerText = `Pairing Code for ${name}`;
-          await fetchPairingCode(server, key, instanceName, phone);
+          await fetchPairingCode(instanceName, phone);
         } else {
           showAuthView('qr-view');
-          await fetchQR(server, key, instanceName);
+          await fetchQR(instanceName);
         }
 
         clearInterval(pollInterval);
@@ -948,15 +957,12 @@ How can we help you today? You can ask about:
       }
     }
 
-    async function fetchPairingCode(server, key, instanceName, phone) {
+    async function fetchPairingCode(instanceName, phone) {
       const codeBox = document.getElementById("pairing-code-box");
       let retries = 0;
       while (retries < 15) {
         try {
-          const res = await fetch(`${server}/instance/connect/${encodeURIComponent(instanceName)}?number=${phone}`, {
-            headers: { 'apikey': key }
-          });
-          const data = await res.json();
+          const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}?number=${phone}`);
           if (data.pairingCode) {
             codeBox.innerText = data.pairingCode;
             return;
@@ -968,16 +974,13 @@ How can we help you today? You can ask about:
       codeBox.innerText = "Timeout. Refresh & retry.";
     }
 
-    async function fetchQR(server, key, instanceName) {
+    async function fetchQR(instanceName) {
       const qrLoading = document.getElementById("qr-loading");
       const qrImg = document.getElementById("qr-image");
       let retries = 0;
       while (retries < 15) {
         try {
-          const res = await fetch(`${server}/instance/connect/${encodeURIComponent(instanceName)}`, {
-            headers: { 'apikey': key }
-          });
-          const data = await res.json();
+          const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}`);
           if (data.base64) {
             qrImg.src = data.base64;
             qrLoading.style.display = "none";
@@ -991,13 +994,8 @@ How can we help you today? You can ask about:
     }
 
     async function checkConnectionProgress(instanceName) {
-      const { server, key } = getServerConfig();
       try {
-        const res = await fetch(`${server}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
-          headers: { 'apikey': key }
-        });
-        const data = await res.json();
-
+        const data = await callEvolution(`/instance/connectionState/${encodeURIComponent(instanceName)}`);
         if (data.instance?.state === 'open') {
           clearInterval(pollInterval);
           showDashboardApp(getSession());
@@ -1040,6 +1038,7 @@ How can we help you today? You can ask about:
       const session = getSession();
       if (!session) return;
 
+      const { server, key } = getServerConfig();
       const businessName = document.getElementById('cfg-business-name').value.trim();
       const openaiKey = document.getElementById('cfg-openai-key').value.trim();
       const faqs = document.getElementById('cfg-faqs').value.trim();
@@ -1057,6 +1056,8 @@ How can we help you today? You can ask about:
             businessName,
             openaiKey,
             faqs,
+            serverUrl: server,
+            serverKey: key,
             enabled: true
           })
         });
@@ -1113,17 +1114,13 @@ How can we help you today? You can ask about:
       const session = getSession();
       if (!session || !session.instanceName) return;
 
-      const { server, key } = getServerConfig();
       const badge = document.getElementById('dash-status-badge');
       const text = document.getElementById('dash-status-text');
       const stateVal = document.getElementById('dash-state-val');
       const reconnectBanner = document.getElementById('dash-reconnect-banner');
 
       try {
-        const res = await fetch(`${server}/instance/connectionState/${encodeURIComponent(session.instanceName)}`, {
-          headers: { 'apikey': key }
-        });
-        const data = await res.json();
+        const data = await callEvolution(`/instance/connectionState/${encodeURIComponent(session.instanceName)}`);
         const state = data.instance?.state;
 
         if (stateVal) stateVal.innerText = state || 'unknown';
@@ -1153,12 +1150,11 @@ How can we help you today? You can ask about:
       showAuthView('pairing-view');
       document.getElementById("pairing-greeting").innerText = `Link WhatsApp for ${session.name}`;
 
-      const { server, key } = getServerConfig();
       if (session.phone) {
-        fetchPairingCode(server, key, session.instanceName, session.phone);
+        fetchPairingCode(session.instanceName, session.phone);
       } else {
         showAuthView('qr-view');
-        fetchQR(server, key, session.instanceName);
+        fetchQR(session.instanceName);
       }
 
       clearInterval(pollInterval);

@@ -25,7 +25,7 @@ function sendJson(res, statusCode, data) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey, x-evo-server, x-evo-key');
   res.statusCode = statusCode;
   res.end(JSON.stringify(data));
 }
@@ -99,39 +99,46 @@ function generateSmartReply(userMessage, businessName, faqs) {
   return `Thank you for contacting ${bName}! 😊\n\nWe received your message. You can ask me about our *pricing*, *business hours*, *location*, or *booking an appointment*. A team member will also follow up with you shortly!`;
 }
 
-// Helper to send WhatsApp text via Evolution API
-function sendWhatsAppMessage(serverUrl, apiKey, instanceName, number, text) {
+// Forward request to Evolution API
+function forwardToEvolution(targetUrl, apiKey, method, pathWithQuery, bodyData) {
   return new Promise((resolve) => {
-    const payload = JSON.stringify({
-      number: number.replace(/[^0-9]/g, ''),
-      text: text,
-      delay: 1200
-    });
+    try {
+      const cleanBase = targetUrl.replace(/\/+$/, '');
+      const fullUrl = new URL(cleanBase + pathWithQuery);
+      const isHttps = fullUrl.protocol === 'https:';
+      const client = isHttps ? https : http;
 
-    const isHttps = serverUrl.startsWith('https://');
-    const urlObj = new URL(serverUrl);
-    const client = isHttps ? https : http;
+      const payload = bodyData ? (typeof bodyData === 'string' ? bodyData : JSON.stringify(bodyData)) : null;
 
-    const req = client.request({
-      protocol: urlObj.protocol,
-      hostname: urlObj.hostname,
-      port: urlObj.port || (isHttps ? 443 : 80),
-      path: `/message/sendText/${encodeURIComponent(instanceName)}`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'apikey': apiKey || '429683C4C977415CAAFCCE10F7D57E11'
-      }
-    }, res => {
-      let resp = '';
-      res.on('data', c => resp += c);
-      res.on('end', () => resolve({ status: res.statusCode, data: resp }));
-    });
+      const req = client.request({
+        protocol: fullUrl.protocol,
+        hostname: fullUrl.hostname,
+        port: fullUrl.port || (isHttps ? 443 : 80),
+        path: fullUrl.pathname + fullUrl.search,
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
+        }
+      }, res => {
+        let resp = '';
+        res.on('data', c => resp += c);
+        res.on('end', () => {
+          try {
+            resolve({ status: res.statusCode, data: JSON.parse(resp) });
+          } catch(e) {
+            resolve({ status: res.statusCode, data: resp });
+          }
+        });
+      });
 
-    req.on('error', err => resolve({ error: err.message }));
-    req.write(payload);
-    req.end();
+      req.on('error', err => resolve({ status: 500, error: err.message }));
+      if (payload) req.write(payload);
+      req.end();
+    } catch(err) {
+      resolve({ status: 500, error: err.message });
+    }
   });
 }
 
@@ -188,7 +195,7 @@ function callOpenAI(apiKey, systemPrompt, userMessage, businessName, faqs) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey, x-evo-server, x-evo-key');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 200;
@@ -199,7 +206,18 @@ export default async function handler(req, res) {
   const url = req.url || '';
 
   try {
-    // 1. Webhook endpoint: /api/webhook/ai-agent/:instanceName
+    // 1. Evolution API Proxy: /api/evo/* -> Forwards securely to user's Hostinger / Local Evolution Server
+    if (url.includes('/api/evo/')) {
+      const evoPath = url.replace(/.*\/api\/evo/, '');
+      const evoServer = req.headers['x-evo-server'] || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+      const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+
+      const bodyData = req.method !== 'GET' ? await getBody(req) : null;
+      const result = await forwardToEvolution(evoServer, evoKey, req.method, evoPath, bodyData);
+      return sendJson(res, result.status || 200, result.data || { error: result.error });
+    }
+
+    // 2. Webhook endpoint: /api/webhook/ai-agent/:instanceName
     if (url.includes('/api/webhook/ai-agent/') && req.method === 'POST') {
       const instanceName = decodeURIComponent(url.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
       const eventData = await getBody(req);
@@ -235,10 +253,14 @@ export default async function handler(req, res) {
               console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
 
               const phoneSender = remoteJid.split('@')[0];
-              const serverUrl = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-              const apiKey = botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+              const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+              const evoKey = botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
-              await sendWhatsAppMessage(serverUrl, apiKey, instanceName, phoneSender, aiReply);
+              await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
+                number: phoneSender.replace(/[^0-9]/g, ''),
+                text: aiReply,
+                delay: 1200
+              });
             }
           }
         }
@@ -247,7 +269,7 @@ export default async function handler(req, res) {
       return sendJson(res, 200, { status: 'received' });
     }
 
-    // 2. Save Bot Configuration: POST /api/bot-config
+    // 3. Save Bot Configuration: POST /api/bot-config
     if (url.startsWith('/api/bot-config') && req.method === 'POST') {
       const data = await getBody(req);
       if (data.instanceName) {
@@ -257,7 +279,7 @@ export default async function handler(req, res) {
       return sendJson(res, 400, { error: 'instanceName is required' });
     }
 
-    // 3. Get Bot Configuration: GET /api/bot-config?instance=...
+    // 4. Get Bot Configuration: GET /api/bot-config?instance=...
     if (url.startsWith('/api/bot-config') && req.method === 'GET') {
       const parsedUrl = new URL(url, 'http://localhost');
       const instanceName = parsedUrl.searchParams.get('instance');
@@ -265,7 +287,7 @@ export default async function handler(req, res) {
       return sendJson(res, 200, config);
     }
 
-    // 4. Test Chat: POST /api/test-chat
+    // 5. Test Chat: POST /api/test-chat
     if (url.startsWith('/api/test-chat') && req.method === 'POST') {
       const data = await getBody(req);
       const reply = await callOpenAI(
