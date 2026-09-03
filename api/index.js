@@ -68,44 +68,81 @@ function cleanMediaUrl(rawUrl) {
   return url;
 }
 
-// Smart Name & Greeting Extractor for zero-API fallback
-function generateSmartReply(userMessage, businessName, faqs) {
+// Intelligent Context-Aware Conversational Fallback Engine
+function generateSmartReply(userMessage, businessName, faqs, conversationHistory = []) {
   const msg = (userMessage || '').trim();
   const lower = msg.toLowerCase();
   const bName = businessName || 'our team';
   const faqText = faqs || '';
 
-  // 1. Name Introduction detection: "My name is X", "I am X", "I'm X", "This is X"
+  // Extract customer name from conversation history if available
+  let detectedName = '';
+  for (const turn of conversationHistory) {
+    const txt = turn.parts?.[0]?.text || '';
+    const m = txt.match(/(?:my name is|i am|i'm|this is|call me|meet you,)\s+([A-Za-z]+)/i);
+    if (m && m[1] && m[1].toLowerCase() !== 'bname') {
+      detectedName = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+      break;
+    }
+  }
+
+  // 1. Direct Name Introduction: "My name is X", "I am X", "I'm X"
   const nameMatch = msg.match(/(?:my name is|i am|i'm|this is|call me)\s+([A-Za-z]+)/i);
   if (nameMatch && nameMatch[1]) {
-    const userName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
-    return `Nice to meet you, ${userName}! 👋 Welcome to *${bName}*.\n\nHow can I help you today? Feel free to ask about our services, pricing, hours, or booking an appointment!`;
+    detectedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+    return `Nice to meet you, ${detectedName}! 👋 Welcome to *${bName}*.\n\nHow can I help you today? Feel free to ask about our services, pricing, hours, or booking an appointment!`;
   }
 
-  // 2. Greetings
+  const greetingName = detectedName ? `, ${detectedName}` : '';
+
+  // 2. Conversational Acknowledgements: "okay", "ok", "sure", "alright", "yes", "cool", "sounds good", "got it"
+  if (/^(ok|okay|k|sure|alright|all right|yes|yeah|yep|cool|sounds good|got it|done|perfect|great)$/i.test(lower)) {
+    // Check if the previous bot message was asking for appointment/booking time
+    const lastBotMsg = conversationHistory.slice().reverse().find(t => t.role === 'model')?.parts?.[0]?.text || '';
+    if (/(book|date|time|appointment|schedule|slot)/i.test(lastBotMsg)) {
+      return `Awesome${greetingName}! What day and time works best for you? (e.g., Tomorrow at 3:00 PM). Let me know and I'll confirm it for you! 😊`;
+    }
+    return `Great${greetingName}! Let me know what you'd like to do next or if you have any questions about our services!`;
+  }
+
+  // 3. Thank you / Appreciation
+  if (/(thank|thanks|thx|appreciate|grateful)/i.test(lower)) {
+    return `You're very welcome${greetingName}! 😊 Feel free to message anytime if you need anything else. Have a wonderful day!`;
+  }
+
+  // 4. Greetings
   if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)$/i.test(lower)) {
-    return `Hey there! 👋 Welcome to *${bName}*. How can I help you today? Feel free to ask about our services, pricing, or hours!`;
+    return `Hey there${greetingName}! 👋 Welcome to *${bName}*. How can I assist you today? Feel free to ask about our services, pricing, or hours!`;
   }
 
-  // 3. Location / Address / Store Photo / Where
+  // 5. Booking / Appointment / Schedule
+  if (/(book|appointment|schedule|slot|reserve|visit)/i.test(lower)) {
+    const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
+    if (lines.length > 0) {
+      return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nWhat day and time work best for you${greetingName}? Just message your preferred slot here!`;
+    }
+    return `📅 I'd be delighted to book an appointment for you${greetingName}! What day and time work best for you?`;
+  }
+
+  // 6. Location / Address / Store Photo / Where
   if (/(location|address|where|direction|city|map|store|office|shop)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map|office|city)/i.test(l));
     if (lines.length > 0) {
-      return `📍 *Our Location:*\n${lines.join('\n')}\n\nLet me know if you need driving directions or landmarks!`;
+      return `📍 *Our Location:*\n${lines.join('\n')}\n\nLet me know if you need driving directions or landmarks${greetingName}!`;
     }
-    return `📍 We are located at Main Office Suite 400. Let me know if you need directions!`;
+    return `📍 We are located at Main Office Suite 400. Let me know if you need driving directions${greetingName}!`;
   }
 
-  // 4. Pricing / Cost / Rates / Catalog / Portfolio
+  // 7. Pricing / Cost / Rates / Catalog / Portfolio
   if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|sample|package)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
     if (lines.length > 0) {
-      return `💰 *Pricing & Services for ${bName}:*\n\n${lines.join('\n')}\n\nWhich of these can I help you with? 😊`;
+      return `💰 *Pricing & Services for ${bName}:*\n\n${lines.join('\n')}\n\nWhich of these can I help you with${greetingName}? 😊`;
     }
-    return `💰 Our packages typically range from $50 for consultations up to $150-$400 for complete projects. Let me know what you need!`;
+    return `💰 Our packages typically range from $50 for consultations up to $150-$400 for complete projects. Let me know what you need${greetingName}!`;
   }
 
-  // 5. Hours / Timing / When open
+  // 8. Hours / Timing / When open
   if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(lower)) {
     const lines = faqText.split('\n').filter(l => /(hour|timing|open|close|mon|tue|wed|thu|fri|sat|sun|am|pm)/i.test(l));
     if (lines.length > 0) {
@@ -114,17 +151,8 @@ function generateSmartReply(userMessage, businessName, faqs) {
     return `🕒 We're open Monday to Saturday from 9:00 AM to 6:00 PM (Closed on Sundays).`;
   }
 
-  // 6. Booking / Appointment / Schedule
-  if (/(book|appointment|schedule|slot|reserve|visit)/i.test(lower)) {
-    const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
-    if (lines.length > 0) {
-      return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nOr reply with your preferred date and time, and we'll confirm it for you!`;
-    }
-    return `📅 I'd be happy to get you scheduled! What date and time work best for you?`;
-  }
-
-  // 7. General Fallback
-  return `Thanks for reaching out to *${bName}*! 😊 I'm here to help. You can ask me about our *services*, *pricing*, *timings*, or *booking an appointment*. What can I assist you with?`;
+  // 9. Natural Follow-up Fallback
+  return `I'm here to help${greetingName}! 😊 You can tell me what service you're looking for, or ask about our *pricing*, *timings*, or *booking a slot*. How can I best assist you?`;
 }
 
 // Google Gemini Flash AI Engine with Multi-Turn Memory & Persona
@@ -133,7 +161,7 @@ function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, curren
     const key = apiKey || process.env.GEMINI_API_KEY;
 
     if (!key) {
-      return resolve(generateSmartReply(currentUserMessage, businessName, faqs));
+      return resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
     }
 
     const contents = [
@@ -156,7 +184,6 @@ function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, curren
       }
     });
 
-    // Try Gemini 1.5 Flash (fallback to Gemini 2.0 Flash)
     const modelName = 'gemini-1.5-flash';
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
@@ -176,15 +203,15 @@ function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, curren
           if (reply && reply.trim().length > 0) {
             resolve(reply.trim());
           } else {
-            resolve(generateSmartReply(currentUserMessage, businessName, faqs));
+            resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
           }
         } catch (e) {
-          resolve(generateSmartReply(currentUserMessage, businessName, faqs));
+          resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory));
         }
       });
     });
 
-    req.on('error', () => resolve(generateSmartReply(currentUserMessage, businessName, faqs)));
+    req.on('error', () => resolve(generateSmartReply(currentUserMessage, businessName, faqs, conversationHistory)));
     req.write(payload);
     req.end();
   });
@@ -323,18 +350,17 @@ BUSINESS KNOWLEDGE & PRICING:
 ${botConfig.faqs || 'We are a dedicated professional business providing quality services. Help the customer with whatever they need.'}
 
 ESSENTIAL RULES:
-1. Personalization & Name Recognition:
+1. Real Human Dialogue:
+   - When the user says casual acknowledgments like "ok", "okay", "sure", or "sounds good", respond naturally in context of the previous message (e.g. asking for their preferred time or clarifying their request).
+   - Never sound like an automated answering machine repeating generic scripts.
+2. Personalization & Name Recognition:
    - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
-   - Use their name naturally in subsequent replies to build trust and connection.
-2. Context Memory:
-   - Remember details the customer shared earlier in the conversation (their name, project requirements, preferences, budget).
-   - If they ask a follow-up question ("how much is that?", "what about the other one?"), use the conversation history to understand exactly what they mean.
-3. Natural Human Tone:
-   - Sound like a real person typing on WhatsApp.
-   - Do NOT repeat the same robotic greeting or generic script in every message.
-   - Keep answers clear and concise (2-4 sentences). Use bullet points (•) and *bold* text for readability.
-4. Action:
-   - If the customer is interested in booking or contacting the team, provide the booking link or phone number from the business knowledge.`;
+   - Use their name naturally in subsequent replies.
+3. Context Memory:
+   - Always remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
+4. WhatsApp Format:
+   - Keep answers clear, conversational, and concise (typically 2 to 4 sentences).
+   - Use bullet points (•) and *bold* text for readability.`;
 
             // Call Google Gemini Flash with full conversation history
             const aiReply = await callGeminiWithHistory(
@@ -427,13 +453,15 @@ BUSINESS KNOWLEDGE & PRICING:
 ${data.faqs || 'We are a dedicated professional business providing quality services.'}
 
 ESSENTIAL RULES:
-1. Personalization & Name Recognition:
+1. Real Human Dialogue:
+   - When the user says short acknowledgments like "ok", "okay", "sure", or "sounds good", respond naturally in context of what was just discussed (e.g., asking for their preferred appointment time, or next step).
+   - Never repeat generic greetings or canned scripts.
+2. Personalization & Name Recognition:
    - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
-   - Use their name naturally in subsequent replies to build trust.
-2. Context Memory:
-   - Remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
-3. Natural Human Tone:
-   - Sound like a real person typing on WhatsApp. Do not repeat the same robotic greeting or closing script.
+   - Use their name naturally in subsequent replies.
+3. Context Memory:
+   - Always remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
+4. WhatsApp Format:
    - Keep answers conversational, clear, and concise (2-4 sentences).`;
 
       const reply = await callGeminiWithHistory(
