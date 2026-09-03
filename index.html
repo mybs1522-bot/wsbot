@@ -680,7 +680,7 @@
           <!-- Column 1: Bot Prompt & Settings Form -->
           <div class="dash-card">
             <h2>🤖 Configure Your 24/7 AI Bot</h2>
-            <p class="card-desc">Works 100% free with built-in Smart FAQ Engine, or connect OpenAI for generative chat.</p>
+            <p class="card-desc">Powered by <b>Google Gemini Flash AI ⚡</b> (Free, ultra-fast & human-like responses).</p>
 
             <form id="bot-config-form" onsubmit="saveBotConfig(event)">
               <div class="input-group">
@@ -689,28 +689,27 @@
               </div>
 
               <div class="input-group">
-                <label>OpenAI API Key <span style="color: #22c55e; font-size: 0.72rem;">(Optional - Free built-in Smart FAQ used if left empty)</span></label>
-                <input type="password" id="cfg-openai-key" class="input-field" placeholder="sk-proj-... (Optional)" />
-                <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Leave empty to use the 100% free Smart FAQ engine.</span>
+                <label>Google Gemini API Key <span style="color: #22c55e; font-size: 0.72rem;">(Optional - Master Platform Key used if empty)</span></label>
+                <input type="password" id="cfg-gemini-key" class="input-field" placeholder="AIzaSy... (Leave empty to use Master Free Gemini)" />
+                <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Leave blank — the system automatically provides free Gemini AI.</span>
               </div>
 
               <div class="input-group">
                 <label>Business Information, FAQs, Hours & Pricing</label>
-                <textarea id="cfg-faqs" class="input-field" placeholder="Type your hours, pricing, services, and booking links here...">- Business Name: Apex Dental Clinic
+                <textarea id="cfg-faqs" class="input-field" placeholder="Type your hours, pricing, services, and booking links here...">- Business Name: Avadaspace Design LLC
 - Business Hours: Mon-Sat 9:00 AM - 6:00 PM (Closed on Sundays)
 - Services & Pricing:
-  * Routine Consultation: $30
-  * Teeth Cleaning & Polishing: $60
-  * Teeth Whitening: $150
-  * Root Canal: $300
-- Location & Address: 124 Main Street, Suite 400
-- Booking Link: Visit https://cal.com/apex-dental to reserve a slot
+  * Consultation & Assessment: $50
+  * Full Design Package: $150 - $400
+  * Custom Development: $300+
+- Location & Address: Main Office Suite 400
+- Booking Link: Reply here to reserve an appointment
 - Emergency Contact: Call (555) 019-2834</textarea>
-                <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">The bot automatically extracts pricing, hours, location, and booking links from these lines!</span>
+                <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Gemini AI intelligently answers customer questions using these details!</span>
               </div>
 
               <button type="submit" id="save-cfg-btn" class="btn">
-                <span>Save & Activate AI Bot</span>
+                <span>Save & Activate Gemini AI Bot</span>
                 <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
               </button>
             </form>
@@ -1058,7 +1057,7 @@ How can we help you today? You can ask about:
         const res = await fetch(`/api/bot-config?instance=${encodeURIComponent(session.instanceName)}`);
         const cfg = await res.json();
         if (cfg.businessName) document.getElementById('cfg-business-name').value = cfg.businessName;
-        if (cfg.openaiKey) document.getElementById('cfg-openai-key').value = cfg.openaiKey;
+        if (cfg.geminiKey) document.getElementById('cfg-gemini-key').value = cfg.geminiKey;
         if (cfg.faqs) document.getElementById('cfg-faqs').value = cfg.faqs;
       } catch (e) {}
 
@@ -1081,12 +1080,12 @@ How can we help you today? You can ask about:
 
       const { server, key } = getServerConfig();
       const businessName = document.getElementById('cfg-business-name').value.trim();
-      const openaiKey = document.getElementById('cfg-openai-key').value.trim();
+      const geminiKey = document.getElementById('cfg-gemini-key').value.trim();
       const faqs = document.getElementById('cfg-faqs').value.trim();
       const btn = document.getElementById('save-cfg-btn');
 
       btn.disabled = true;
-      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Saving AI Bot...`;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Activating Gemini AI Bot...`;
 
       try {
         const res = await fetch('/api/bot-config', {
@@ -1095,7 +1094,7 @@ How can we help you today? You can ask about:
           body: JSON.stringify({
             instanceName: session.instanceName,
             businessName,
-            openaiKey,
+            geminiKey,
             faqs,
             serverUrl: server,
             serverKey: key,
@@ -1105,17 +1104,17 @@ How can we help you today? You can ask about:
 
         const data = await res.json();
         if (data.success) {
-          btn.innerHTML = `<span>✅ Bot Active & Saved!</span>`;
-          document.getElementById('chat-preview-title').innerText = `${businessName} Assistant`;
+          btn.innerHTML = `<span>✅ Gemini Bot Live & Active!</span>`;
+          document.getElementById('chat-preview-title').innerText = `${businessName} AI Assistant`;
           setTimeout(() => {
             btn.disabled = false;
-            btn.innerHTML = `<span>Save & Activate AI Bot</span>`;
+            btn.innerHTML = `<span>Save & Activate Gemini AI Bot</span>`;
           }, 2000);
         }
       } catch (err) {
         alert("Error saving bot: " + err.message);
         btn.disabled = false;
-        btn.innerHTML = `<span>Save & Activate AI Bot</span>`;
+        btn.innerHTML = `<span>Save & Activate Gemini AI Bot</span>`;
       }
     }
 
@@ -1130,23 +1129,23 @@ How can we help you today? You can ask about:
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
       const botMsgId = 'bot-reply-' + Date.now();
-      messagesDiv.innerHTML += `<div class="msg-bubble msg-bot" id="${botMsgId}"><span style="color: #94a3b8;">Thinking...</span></div>`;
+      messagesDiv.innerHTML += `<div class="msg-bubble msg-bot" id="${botMsgId}"><span style="color: #94a3b8;">Gemini AI typing...</span></div>`;
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
       const businessName = document.getElementById('cfg-business-name').value.trim();
-      const openaiKey = document.getElementById('cfg-openai-key').value.trim();
+      const geminiKey = document.getElementById('cfg-gemini-key').value.trim();
       const faqs = document.getElementById('cfg-faqs').value.trim();
 
       try {
         const res = await fetch('/api/test-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessName, openaiKey, faqs, message: text })
+          body: JSON.stringify({ businessName, geminiKey, faqs, message: text })
         });
         const data = await res.json();
         document.getElementById(botMsgId).innerText = data.reply || 'No response';
       } catch (err) {
-        document.getElementById(botMsgId).innerText = 'Error calling AI: ' + err.message;
+        document.getElementById(botMsgId).innerText = 'Error calling Gemini AI: ' + err.message;
       }
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
