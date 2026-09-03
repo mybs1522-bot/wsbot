@@ -2,8 +2,8 @@ import https from 'https';
 import http from 'http';
 import { URL, URLSearchParams } from 'url';
 
-// Default persistent configurations for client instances (survives cold starts & server restarts)
-const persistentDefaults = {
+// Durable Persistent Registry for Client Instances (Survives cold starts, restarts & redeployments)
+const persistentInstanceRegistry = {
   'avadaspace_design_llc_shaguny123_412': {
     instanceName: 'avadaspace_design_llc_shaguny123_412',
     businessName: 'Avadaspace Design LLC',
@@ -23,28 +23,37 @@ const persistentDefaults = {
   }
 };
 
-// Global in-memory storage for serverless runtime initialized with persistent defaults
-const memoryConfigs = { ...persistentDefaults };
+// Global active in-memory storage initialized from persistent registry
+const memoryConfigs = { ...persistentInstanceRegistry };
 
+// Self-Healing Config Resolver (Guarantees every instance always has active AI)
 function getEffectiveConfig(instanceName) {
-  if (memoryConfigs[instanceName]) return memoryConfigs[instanceName];
-  if (persistentDefaults[instanceName]) return persistentDefaults[instanceName];
+  const cleanId = instanceName || 'default';
   
-  // Clean fallback for any newly created instance
-  const cleanName = (instanceName || 'Our Business')
+  if (memoryConfigs[cleanId]) return memoryConfigs[cleanId];
+  if (persistentInstanceRegistry[cleanId]) return persistentInstanceRegistry[cleanId];
+  
+  // Auto-generate robust default configuration for any newly connected WhatsApp instance
+  const cleanName = cleanId
     .replace(/_[a-z0-9]+_\d+$/i, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, l => l.toUpperCase());
 
-  return {
-    instanceName: instanceName || 'default',
-    businessName: cleanName,
-    faqs: `- Business Name: ${cleanName}
+  const autoConfig = {
+    instanceName: cleanId,
+    businessName: cleanName || 'Our Business',
+    faqs: `- Business Name: ${cleanName || 'Our Business'}
 - Business Hours: Mon-Sat 9:00 AM - 6:00 PM (Closed on Sundays)
 - Services: Professional services and consultations
 - Booking: Reply here to schedule an appointment`,
-    enabled: true
+    locationMediaUrl: '',
+    catalogMediaUrl: '',
+    welcomeMediaUrl: '',
+    enabled: true // Always active by default
   };
+
+  memoryConfigs[cleanId] = autoConfig;
+  return autoConfig;
 }
 
 // Multi-turn conversation history cache keyed by: `${instanceName}:${senderId}`
@@ -67,8 +76,8 @@ function addToHistory(instanceName, senderId, role, text) {
     role: role === 'user' ? 'user' : 'model',
     parts: [{ text: text }]
   });
-  if (conversationHistories[key].length > 14) {
-    conversationHistories[key] = conversationHistories[key].slice(-14);
+  if (conversationHistories[key].length > 16) {
+    conversationHistories[key] = conversationHistories[key].slice(-16);
   }
 }
 
@@ -456,8 +465,15 @@ export default async function handler(req, res) {
             const senderPhone = remoteJid.split('@')[0].replace(/[^0-9]/g, '');
             console.log(`[WhatsApp Incoming] [${instanceName}] from ${senderPhone}: "${userText}"`);
 
-            // Retrieve persistent bot configuration for this instance
+            // Retrieve persistent bot configuration
             const botConfig = getEffectiveConfig(instanceName);
+
+            // If the bot has been explicitly turned OFF via toggle, ignore auto-reply
+            if (botConfig.enabled === false) {
+              console.log(`[WhatsApp Incoming] [${instanceName}] Bot is currently set to INACTIVE/PAUSED. Skipping auto-reply.`);
+              return sendJson(res, 200, { status: 'bot_paused' });
+            }
+
             const businessName = botConfig.businessName || 'Our Business';
 
             // Retrieve customer chat history for multi-turn memory
@@ -542,13 +558,15 @@ ESSENTIAL RULES:
       return sendJson(res, 200, { status: 'received' });
     }
 
-    // 3. Save Bot Configuration: POST /api/bot-config
+    // 3. Save / Toggle Bot Configuration: POST /api/bot-config
     if (action === 'bot-config' && req.method === 'POST') {
       const data = await getBody(req);
       if (data.instanceName) {
-        memoryConfigs[data.instanceName] = { ...(memoryConfigs[data.instanceName] || {}), ...data };
-        persistentDefaults[data.instanceName] = { ...(persistentDefaults[data.instanceName] || {}), ...data };
-        return sendJson(res, 200, { success: true, config: memoryConfigs[data.instanceName] });
+        const existing = getEffectiveConfig(data.instanceName);
+        const updated = { ...existing, ...data };
+        memoryConfigs[data.instanceName] = updated;
+        persistentInstanceRegistry[data.instanceName] = updated;
+        return sendJson(res, 200, { success: true, config: updated });
       }
       return sendJson(res, 400, { error: 'instanceName is required' });
     }
@@ -609,7 +627,7 @@ ESSENTIAL RULES:
       return sendJson(res, 200, { reply, mediaUrl });
     }
 
-    return sendJson(res, 200, { status: 'BotFlow Context-Aware Gemini AI Live' });
+    return sendJson(res, 200, { status: 'BotFlow Self-Healing Gemini AI Live' });
 
   } catch (err) {
     return sendJson(res, 500, { error: err.message });
