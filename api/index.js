@@ -68,15 +68,20 @@ function cleanMediaUrl(rawUrl) {
   return url;
 }
 
-// Intelligent Context-Aware Conversational Fallback Engine
+// High-EQ Human Scheduling & Conversation Engine
 function generateSmartReply(userMessage, businessName, faqs, conversationHistory = []) {
   const msg = (userMessage || '').trim();
   const lower = msg.toLowerCase();
   const bName = businessName || 'our team';
-  const faqText = faqs || '';
 
-  // Extract customer name from conversation history if available
+  // 1. Extract customer name from current message or conversation history
   let detectedName = '';
+  const nameMatch = msg.match(/(?:my name is|i am|i'm|this is|call me)\s+([A-Za-z]+)/i);
+  if (nameMatch && nameMatch[1]) {
+    detectedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+    return `Nice to meet you, ${detectedName}! 👋 Welcome to *${bName}*.\n\nHow can I help you today? Feel free to ask about our services, pricing, hours, or booking an appointment!`;
+  }
+
   for (const turn of conversationHistory) {
     const txt = turn.parts?.[0]?.text || '';
     const m = txt.match(/(?:my name is|i am|i'm|this is|call me|meet you,)\s+([A-Za-z]+)/i);
@@ -86,73 +91,73 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
     }
   }
 
-  // 1. Direct Name Introduction: "My name is X", "I am X", "I'm X"
-  const nameMatch = msg.match(/(?:my name is|i am|i'm|this is|call me)\s+([A-Za-z]+)/i);
-  if (nameMatch && nameMatch[1]) {
-    detectedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
-    return `Nice to meet you, ${detectedName}! 👋 Welcome to *${bName}*.\n\nHow can I help you today? Feel free to ask about our services, pricing, hours, or booking an appointment!`;
+  const nameTag = detectedName ? ` ${detectedName}` : '';
+
+  // 2. Intelligent Appointment Day & Time Slot Checking (e.g., "3:00 pm sunday", "tomorrow 5pm", "monday at 10am")
+  const isTimeOrDayGiven = /\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today))\b/i.test(lower);
+  const lastBotMsg = conversationHistory.slice().reverse().find(t => t.role === 'model')?.parts?.[0]?.text || '';
+  const wasBookingContext = /(book|date|time|appointment|schedule|slot|when)/i.test(lastBotMsg) || /(book|schedule|reserve|appointment)/i.test(lower);
+
+  if (isTimeOrDayGiven || wasBookingContext) {
+    // Check if user requested Sunday (Closed)
+    if (lower.includes('sunday')) {
+      return `Sorry${nameTag}, we are closed on Sundays! 🕒 Our working hours are Monday to Saturday from 9:00 AM to 6:00 PM. Could you choose a time between Monday and Saturday instead? 😊`;
+    }
+
+    // Check if user requested time outside working hours (Before 9 AM or After 6 PM)
+    const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+    if (timeMatch) {
+      let hour = parseInt(timeMatch[1], 10);
+      const isPm = timeMatch[3].toLowerCase() === 'pm';
+      if (isPm && hour !== 12) hour += 12;
+      if (!isPm && hour === 12) hour = 0;
+
+      if (hour < 9 || hour >= 18) {
+        return `Sorry${nameTag}, that time is outside our working hours! 🕒 We are open Monday to Saturday, 9:00 AM to 6:00 PM. Could you pick a time between 9:00 AM and 6:00 PM?`;
+      }
+    }
+
+    // Valid booking time given
+    if (isTimeOrDayGiven) {
+      return `Perfect${nameTag}! I've noted *${msg}* for your appointment. 📅 Our team has received your request and will confirm your booking shortly. Is there anything specific you'd like us to prepare for you? 😊`;
+    }
   }
 
-  const greetingName = detectedName ? `, ${detectedName}` : '';
-
-  // 2. Conversational Acknowledgements: "okay", "ok", "sure", "alright", "yes", "cool", "sounds good", "got it"
+  // 3. Conversational Acknowledgements: "okay", "sure", "alright", "yes"
   if (/^(ok|okay|k|sure|alright|all right|yes|yeah|yep|cool|sounds good|got it|done|perfect|great)$/i.test(lower)) {
-    // Check if the previous bot message was asking for appointment/booking time
-    const lastBotMsg = conversationHistory.slice().reverse().find(t => t.role === 'model')?.parts?.[0]?.text || '';
     if (/(book|date|time|appointment|schedule|slot)/i.test(lastBotMsg)) {
-      return `Awesome${greetingName}! What day and time works best for you? (e.g., Tomorrow at 3:00 PM). Let me know and I'll confirm it for you! 😊`;
+      return `Awesome${nameTag}! What day and time works best for you? (e.g., Monday at 3:00 PM). Let me know and I'll confirm it for you! 😊`;
     }
-    return `Great${greetingName}! Let me know what you'd like to do next or if you have any questions about our services!`;
+    return `Great${nameTag}! Let me know what you'd like to do next or if you have any questions about our services!`;
   }
 
-  // 3. Thank you / Appreciation
+  // 4. Thank you / Appreciation
   if (/(thank|thanks|thx|appreciate|grateful)/i.test(lower)) {
-    return `You're very welcome${greetingName}! 😊 Feel free to message anytime if you need anything else. Have a wonderful day!`;
+    return `You're very welcome${nameTag}! 😊 Feel free to message anytime if you need anything else. Have a wonderful day!`;
   }
 
-  // 4. Greetings
-  if (/^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening)|start|help|test)$/i.test(lower)) {
-    return `Hey there${greetingName}! 👋 Welcome to *${bName}*. How can I assist you today? Feel free to ask about our services, pricing, or hours!`;
-  }
-
-  // 5. Booking / Appointment / Schedule
+  // 5. Booking / Appointment Request (Initial)
   if (/(book|appointment|schedule|slot|reserve|visit)/i.test(lower)) {
-    const lines = faqText.split('\n').filter(l => /(book|cal\.com|calendly|link|appointment|visit)/i.test(l));
-    if (lines.length > 0) {
-      return `📅 *Booking an Appointment with ${bName}:*\n\n${lines.join('\n')}\n\nWhat day and time work best for you${greetingName}? Just message your preferred slot here!`;
-    }
-    return `📅 I'd be delighted to book an appointment for you${greetingName}! What day and time work best for you?`;
+    return `📅 I'd be delighted to help you book an appointment${nameTag}!\n\nWe are open **Monday to Saturday from 9:00 AM to 6:00 PM** (Closed on Sundays).\n\nWhat day and time work best for you?`;
   }
 
-  // 6. Location / Address / Store Photo / Where
-  if (/(location|address|where|direction|city|map|store|office|shop)/i.test(lower)) {
-    const lines = faqText.split('\n').filter(l => /(location|address|street|suite|road|floor|map|office|city)/i.test(l));
-    if (lines.length > 0) {
-      return `📍 *Our Location:*\n${lines.join('\n')}\n\nLet me know if you need driving directions or landmarks${greetingName}!`;
-    }
-    return `📍 We are located at Main Office Suite 400. Let me know if you need driving directions${greetingName}!`;
+  // 6. Hours / Timing / When open
+  if (/(hour|timing|time|open|close|when\s*are\s*you|weekend)/i.test(lower)) {
+    return `🕒 *Business Hours for ${bName}:*\n• Monday - Saturday: 9:00 AM - 6:00 PM\n• Sunday: Closed\n\nFeel free to book a slot during our working hours${nameTag}!`;
   }
 
   // 7. Pricing / Cost / Rates / Catalog / Portfolio
   if (/(price|pricing|cost|how\s*much|rate|charges|fee|catalog|catalogue|brochure|portfolio|sample|package)/i.test(lower)) {
-    const lines = faqText.split('\n').filter(l => /(price|pricing|cost|\$|₹|fee|clean|whiten|consult|service|rate|package)/i.test(l));
-    if (lines.length > 0) {
-      return `💰 *Pricing & Services for ${bName}:*\n\n${lines.join('\n')}\n\nWhich of these can I help you with${greetingName}? 😊`;
-    }
-    return `💰 Our packages typically range from $50 for consultations up to $150-$400 for complete projects. Let me know what you need${greetingName}!`;
+    return `💰 *Pricing & Services for ${bName}:*\n• Consultation & Assessment: $50\n• Complete Package: $150 - $400\n• Custom Development: $300+\n\nWould you like more details or to schedule a consultation${nameTag}? 😊`;
   }
 
-  // 8. Hours / Timing / When open
-  if (/(hour|timing|time|open|close|when\s*are\s*you|sunday|monday|saturday|weekend)/i.test(lower)) {
-    const lines = faqText.split('\n').filter(l => /(hour|timing|open|close|mon|tue|wed|thu|fri|sat|sun|am|pm)/i.test(l));
-    if (lines.length > 0) {
-      return `🕒 *Business Hours for ${bName}:*\n\n${lines.join('\n')}\n\nFeel free to reach out or drop by during these times!`;
-    }
-    return `🕒 We're open Monday to Saturday from 9:00 AM to 6:00 PM (Closed on Sundays).`;
+  // 8. Location / Address / Where
+  if (/(location|address|where|direction|city|map|store|office|shop)/i.test(lower)) {
+    return `📍 *Our Location:*\nWe are located at Main Office Suite 400. Let me know if you need driving directions${nameTag}!`;
   }
 
   // 9. Natural Follow-up Fallback
-  return `I'm here to help${greetingName}! 😊 You can tell me what service you're looking for, or ask about our *pricing*, *timings*, or *booking a slot*. How can I best assist you?`;
+  return `I'm here to help${nameTag}! 😊 You can tell me what service you're looking for, or ask about our *pricing*, *timings*, or *booking a slot*. How can I best assist you?`;
 }
 
 // Google Gemini Flash AI Engine with Multi-Turn Memory & Persona
@@ -350,15 +355,14 @@ BUSINESS KNOWLEDGE & PRICING:
 ${botConfig.faqs || 'We are a dedicated professional business providing quality services. Help the customer with whatever they need.'}
 
 ESSENTIAL RULES:
-1. Real Human Dialogue:
-   - When the user says casual acknowledgments like "ok", "okay", "sure", or "sounds good", respond naturally in context of the previous message (e.g. asking for their preferred time or clarifying their request).
-   - Never sound like an automated answering machine repeating generic scripts.
+1. Real Human Scheduling & Awareness:
+   - Check user requests against our business hours (e.g. Mon-Sat 9:00 AM - 6:00 PM, Closed Sundays).
+   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could you do Monday or another weekday instead?"
+   - Never dump raw FAQ text or robotic lists when a simple conversational reply is needed.
 2. Personalization & Name Recognition:
-   - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
+   - When the customer shares their name, warmly address them by their name.
    - Use their name naturally in subsequent replies.
-3. Context Memory:
-   - Always remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
-4. WhatsApp Format:
+3. WhatsApp Format:
    - Keep answers clear, conversational, and concise (typically 2 to 4 sentences).
    - Use bullet points (•) and *bold* text for readability.`;
 
@@ -453,15 +457,14 @@ BUSINESS KNOWLEDGE & PRICING:
 ${data.faqs || 'We are a dedicated professional business providing quality services.'}
 
 ESSENTIAL RULES:
-1. Real Human Dialogue:
-   - When the user says short acknowledgments like "ok", "okay", "sure", or "sounds good", respond naturally in context of what was just discussed (e.g., asking for their preferred appointment time, or next step).
-   - Never repeat generic greetings or canned scripts.
+1. Real Human Scheduling & Awareness:
+   - Check user requests against our business hours (e.g. Mon-Sat 9:00 AM - 6:00 PM, Closed Sundays).
+   - If a customer requests an appointment when closed (e.g., Sunday or outside working hours), politely and empathetically decline: "Sorry [Name], we are closed on Sundays! Our hours are Mon-Sat 9AM-6PM. Could you do Monday or another weekday instead?"
+   - Never dump raw FAQ text or robotic lists when a simple conversational reply is needed.
 2. Personalization & Name Recognition:
-   - When the customer shares their name (e.g., "I am Bhavesh" or "My name is Bhavesh"), warmly acknowledge and address them by their name (e.g., "Nice to meet you, Bhavesh! 👋").
+   - When the customer shares their name, warmly address them by their name.
    - Use their name naturally in subsequent replies.
-3. Context Memory:
-   - Always remember details the customer shared earlier in the conversation (name, project details, preferences, dates).
-4. WhatsApp Format:
+3. WhatsApp Format:
    - Keep answers conversational, clear, and concise (2-4 sentences).`;
 
       const reply = await callGeminiWithHistory(
