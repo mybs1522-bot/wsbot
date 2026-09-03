@@ -227,7 +227,7 @@ async function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, 
     },
     contents: contents,
     generationConfig: {
-      maxOutputTokens: 350,
+      maxOutputTokens: 600,
       temperature: 0.7,
       topP: 0.95
     }
