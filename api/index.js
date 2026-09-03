@@ -203,12 +203,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const url = req.url || '';
+  const rawUrl = req.url || '';
+  const parsedUrl = new URL(rawUrl, 'http://localhost');
+  const action = parsedUrl.searchParams.get('action') || '';
+  const pathParam = parsedUrl.searchParams.get('path') || '';
+  const instanceParam = parsedUrl.searchParams.get('instance') || '';
 
   try {
-    // 1. Evolution API Proxy: /api/evo/* -> Forwards securely to user's Hostinger / Local Evolution Server
-    if (url.includes('/api/evo/')) {
-      const evoPath = url.replace(/.*\/api\/evo/, '');
+    // 1. Evolution API Proxy: /api/evo/*
+    if (action === 'evo' || rawUrl.includes('/api/evo/')) {
+      const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
       const evoServer = req.headers['x-evo-server'] || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
       const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
@@ -218,8 +222,8 @@ export default async function handler(req, res) {
     }
 
     // 2. Webhook endpoint: /api/webhook/ai-agent/:instanceName
-    if (url.includes('/api/webhook/ai-agent/') && req.method === 'POST') {
-      const instanceName = decodeURIComponent(url.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
+    if (action === 'webhook' || rawUrl.includes('/api/webhook/ai-agent/')) {
+      const instanceName = decodeURIComponent(instanceParam || rawUrl.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
       const eventData = await getBody(req);
 
       if (eventData.event === 'messages.upsert' && eventData.data) {
@@ -270,7 +274,7 @@ export default async function handler(req, res) {
     }
 
     // 3. Save Bot Configuration: POST /api/bot-config
-    if (url.startsWith('/api/bot-config') && req.method === 'POST') {
+    if (action === 'bot-config' && req.method === 'POST') {
       const data = await getBody(req);
       if (data.instanceName) {
         memoryConfigs[data.instanceName] = { ...(memoryConfigs[data.instanceName] || {}), ...data };
@@ -280,15 +284,14 @@ export default async function handler(req, res) {
     }
 
     // 4. Get Bot Configuration: GET /api/bot-config?instance=...
-    if (url.startsWith('/api/bot-config') && req.method === 'GET') {
-      const parsedUrl = new URL(url, 'http://localhost');
+    if (action === 'bot-config' && req.method === 'GET') {
       const instanceName = parsedUrl.searchParams.get('instance');
       const config = memoryConfigs[instanceName] || {};
       return sendJson(res, 200, config);
     }
 
     // 5. Test Chat: POST /api/test-chat
-    if (url.startsWith('/api/test-chat') && req.method === 'POST') {
+    if (action === 'test-chat' && req.method === 'POST') {
       const data = await getBody(req);
       const reply = await callOpenAI(
         data.openaiKey, 
