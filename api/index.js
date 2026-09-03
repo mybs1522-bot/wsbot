@@ -334,7 +334,7 @@ export default async function handler(req, res) {
 
   try {
     // Status / Health Check Endpoint
-    if (action === 'status' || rawUrl.includes('/api/status')) {
+    if (action === 'status' || rawUrl.includes('status')) {
       const hasKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
       return sendJson(res, 200, {
         status: 'online',
@@ -343,7 +343,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (action === 'debug-gemini') {
+    if (action === 'debug-gemini' || rawUrl.includes('debug-gemini')) {
       const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
       try {
         const payload = JSON.stringify({
@@ -357,7 +357,7 @@ export default async function handler(req, res) {
     }
 
     // 1. Evolution API Proxy: /api/evo/*
-    if (action === 'evo' || rawUrl.includes('/api/evo/')) {
+    if (action === 'evo' || rawUrl.includes('/api/evo/') || rawUrl.includes('/evo/')) {
       const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
       const evoServer = req.headers['x-evo-server'] || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
       const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
