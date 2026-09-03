@@ -5,6 +5,31 @@ import { URL } from 'url';
 // Global in-memory storage for serverless runtime
 const memoryConfigs = {};
 
+// Helper to safely parse body in any Vercel/Node environment
+async function getBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch(e) { return {}; }
+  }
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try { resolve(JSON.parse(body || '{}')); } catch(e) { resolve({}); }
+    });
+    req.on('error', () => resolve({}));
+  });
+}
+
+function sendJson(res, statusCode, data) {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
+  res.statusCode = statusCode;
+  res.end(JSON.stringify(data));
+}
+
 // Built-in Smart FAQ Matcher
 function generateSmartReply(userMessage, businessName, faqs) {
   const msg = (userMessage || '').toLowerCase().trim();
@@ -159,97 +184,103 @@ function callOpenAI(apiKey, systemPrompt, userMessage, businessName, faqs) {
   });
 }
 
-// Vercel Serverless Function Entry Point (ESM)
+// Vercel Serverless Function Entry Point
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.statusCode = 200;
+    res.end();
     return;
   }
 
   const url = req.url || '';
 
-  // 1. Webhook endpoint from Evolution API: /api/webhook/ai-agent/:instanceName
-  if (url.includes('/api/webhook/ai-agent/') && req.method === 'POST') {
-    const instanceName = decodeURIComponent(url.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
-    const eventData = req.body || {};
+  try {
+    // 1. Webhook endpoint: /api/webhook/ai-agent/:instanceName
+    if (url.includes('/api/webhook/ai-agent/') && req.method === 'POST') {
+      const instanceName = decodeURIComponent(url.split('/api/webhook/ai-agent/')[1]?.split('?')[0] || '');
+      const eventData = await getBody(req);
 
-    if (eventData.event === 'messages.upsert' && eventData.data) {
-      const msg = eventData.data;
-      const isFromMe = msg.key?.fromMe;
-      const remoteJid = msg.key?.remoteJid || '';
+      if (eventData.event === 'messages.upsert' && eventData.data) {
+        const msg = eventData.data;
+        const isFromMe = msg.key?.fromMe;
+        const remoteJid = msg.key?.remoteJid || '';
 
-      if (!isFromMe && !remoteJid.includes('@broadcast') && !remoteJid.includes('status@broadcast')) {
-        const userText = msg.message?.conversation || 
-                         msg.message?.extendedTextMessage?.text || 
-                         msg.message?.imageMessage?.caption || '';
+        if (!isFromMe && !remoteJid.includes('@broadcast') && !remoteJid.includes('status@broadcast')) {
+          const userText = msg.message?.conversation || 
+                           msg.message?.extendedTextMessage?.text || 
+                           msg.message?.imageMessage?.caption || '';
 
-        if (userText && userText.trim().length > 0) {
-          console.log(`[WhatsApp Incoming] [${instanceName}] from ${remoteJid}: "${userText}"`);
+          if (userText && userText.trim().length > 0) {
+            console.log(`[WhatsApp Incoming] [${instanceName}] from ${remoteJid}: "${userText}"`);
 
-          const botConfig = memoryConfigs[instanceName] || {};
+            const botConfig = memoryConfigs[instanceName] || {};
 
-          if (botConfig.enabled !== false) {
-            const systemPrompt = `You are a friendly, concise 24/7 AI assistant for ${botConfig.businessName || 'our business'}.\n\n` +
-                                 `BUSINESS INFORMATION & FAQS:\n${botConfig.faqs || 'We are a professional service provider. Answer questions politely.'}\n\n` +
-                                 `RULES:\n- Keep answers concise and helpful (under 2-3 sentences).`;
+            if (botConfig.enabled !== false) {
+              const systemPrompt = `You are a friendly, concise 24/7 AI assistant for ${botConfig.businessName || 'our business'}.\n\n` +
+                                   `BUSINESS INFORMATION & FAQS:\n${botConfig.faqs || 'We are a professional service provider. Answer questions politely.'}\n\n` +
+                                   `RULES:\n- Keep answers concise and helpful (under 2-3 sentences).`;
 
-            const aiReply = await callOpenAI(
-              botConfig.openaiKey, 
-              systemPrompt, 
-              userText, 
-              botConfig.businessName, 
-              botConfig.faqs
-            );
+              const aiReply = await callOpenAI(
+                botConfig.openaiKey, 
+                systemPrompt, 
+                userText, 
+                botConfig.businessName, 
+                botConfig.faqs
+              );
 
-            console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
+              console.log(`[AI Response] [${instanceName}] replying: "${aiReply}"`);
 
-            const phoneSender = remoteJid.split('@')[0];
-            const serverUrl = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-            const apiKey = botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+              const phoneSender = remoteJid.split('@')[0];
+              const serverUrl = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+              const apiKey = botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 
-            await sendWhatsAppMessage(serverUrl, apiKey, instanceName, phoneSender, aiReply);
+              await sendWhatsAppMessage(serverUrl, apiKey, instanceName, phoneSender, aiReply);
+            }
           }
         }
       }
+
+      return sendJson(res, 200, { status: 'received' });
     }
 
-    return res.status(200).json({ status: 'received' });
-  }
-
-  // 2. Save Bot Configuration: POST /api/bot-config
-  if (url.startsWith('/api/bot-config') && req.method === 'POST') {
-    const data = req.body || {};
-    if (data.instanceName) {
-      memoryConfigs[data.instanceName] = { ...(memoryConfigs[data.instanceName] || {}), ...data };
-      return res.status(200).json({ success: true, config: memoryConfigs[data.instanceName] });
+    // 2. Save Bot Configuration: POST /api/bot-config
+    if (url.startsWith('/api/bot-config') && req.method === 'POST') {
+      const data = await getBody(req);
+      if (data.instanceName) {
+        memoryConfigs[data.instanceName] = { ...(memoryConfigs[data.instanceName] || {}), ...data };
+        return sendJson(res, 200, { success: true, config: memoryConfigs[data.instanceName] });
+      }
+      return sendJson(res, 400, { error: 'instanceName is required' });
     }
-    return res.status(400).json({ error: 'instanceName is required' });
-  }
 
-  // 3. Get Bot Configuration: GET /api/bot-config?instance=...
-  if (url.startsWith('/api/bot-config') && req.method === 'GET') {
-    const parsedUrl = new URL(url, 'http://localhost');
-    const instanceName = parsedUrl.searchParams.get('instance');
-    const config = memoryConfigs[instanceName] || {};
-    return res.status(200).json(config);
-  }
+    // 3. Get Bot Configuration: GET /api/bot-config?instance=...
+    if (url.startsWith('/api/bot-config') && req.method === 'GET') {
+      const parsedUrl = new URL(url, 'http://localhost');
+      const instanceName = parsedUrl.searchParams.get('instance');
+      const config = memoryConfigs[instanceName] || {};
+      return sendJson(res, 200, config);
+    }
 
-  // 4. Test Chat: POST /api/test-chat
-  if (url.startsWith('/api/test-chat') && req.method === 'POST') {
-    const data = req.body || {};
-    const reply = await callOpenAI(
-      data.openaiKey, 
-      null, 
-      data.message || 'Hi', 
-      data.businessName, 
-      data.faqs
-    );
-    return res.status(200).json({ reply });
-  }
+    // 4. Test Chat: POST /api/test-chat
+    if (url.startsWith('/api/test-chat') && req.method === 'POST') {
+      const data = await getBody(req);
+      const reply = await callOpenAI(
+        data.openaiKey, 
+        null, 
+        data.message || 'Hi', 
+        data.businessName, 
+        data.faqs
+      );
+      return sendJson(res, 200, { reply });
+    }
 
-  return res.status(200).json({ status: 'BotFlow Vercel Engine Live' });
+    return sendJson(res, 200, { status: 'BotFlow Vercel Engine Live' });
+
+  } catch (err) {
+    return sendJson(res, 500, { error: err.message });
+  }
 }
