@@ -1115,9 +1115,13 @@ How can we help you today? You can ask about:
         if (localCfg.locationMediaUrl) document.getElementById('cfg-location-media').value = localCfg.locationMediaUrl;
       } catch (e) {}
 
-      // Automatically sync and activate on the server immediately on page load!
-      setTimeout(() => {
-        saveBotConfigSilent();
+      // === AUTO-ACTIVATION: Push config + re-register webhook on every page load ===
+      setTimeout(async () => {
+        // 1. Push config to backend (survives cold start)
+        await saveBotConfigSilent();
+
+        // 2. Re-register webhook on Evolution API (survives Evolution restarts)
+        await ensureWebhookRegistered(session.instanceName);
       }, 500);
 
       // Fetch latest from server
@@ -1135,6 +1139,29 @@ How can we help you today? You can ask about:
       clearInterval(dashboardPoll);
       await monitorLive();
       dashboardPoll = setInterval(monitorLive, 3000);
+    }
+
+    // Ensure webhook is registered on Evolution API (called on every page load)
+    async function ensureWebhookRegistered(instanceName) {
+      if (!instanceName) return;
+      const { server, key } = getServerConfig();
+      const webhookUrl = `${window.location.origin}/api/webhook/ai-agent/${instanceName}`;
+      try {
+        const res = await fetch('/api/ensure-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instanceName,
+            serverUrl: server,
+            serverKey: key,
+            webhookUrl
+          })
+        });
+        const data = await res.json();
+        console.log('[Auto-Webhook]', data);
+      } catch (e) {
+        console.warn('[Auto-Webhook] Failed:', e.message);
+      }
     }
 
     let autoSaveTimer = null;

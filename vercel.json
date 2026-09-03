@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/evo/(.*)", "destination": "/api/index.js?action=evo&path=/$1" },
     { "source": "/api/webhook/ai-agent/(.*)", "destination": "/api/index.js?action=webhook&instance=$1" },
+    { "source": "/api/ensure-webhook", "destination": "/api/index.js?action=ensure-webhook" },
     { "source": "/api/(.*)", "destination": "/api/index.js?action=$1" },
     { "source": "/", "destination": "/connect.html" },
     { "source": "/(.*)", "destination": "/$1" }

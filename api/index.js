@@ -19,6 +19,8 @@ const persistentInstanceRegistry = {
     locationMediaUrl: 'https://lh3.googleusercontent.com/d/1O5vQRbxIT259y1wDCE1-JPjQ34dLtsry',
     catalogMediaUrl: '',
     welcomeMediaUrl: '',
+    serverUrl: 'https://evolution-api-2gki.srv1722699.hstgr.cloud',
+    serverKey: '429683C4C977415CAAFCCE10F7D57E11',
     enabled: true
   }
 };
@@ -559,6 +561,7 @@ ESSENTIAL RULES:
     }
 
     // 3. Save / Toggle Bot Configuration: POST /api/bot-config
+    // Also auto-re-registers webhook on Evolution API to ensure durability
     if (action === 'bot-config' && req.method === 'POST') {
       const data = await getBody(req);
       if (data.instanceName) {
@@ -566,6 +569,27 @@ ESSENTIAL RULES:
         const updated = { ...existing, ...data };
         memoryConfigs[data.instanceName] = updated;
         persistentInstanceRegistry[data.instanceName] = updated;
+
+        // Auto-register webhook on Evolution API (fire-and-forget for speed)
+        const evoServer = updated.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+        const evoKey = updated.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+        const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(data.instanceName)}`;
+
+        // Fire-and-forget webhook registration (don't block the response)
+        forwardToEvolution(evoServer, evoKey, 'POST', `/webhook/set/${encodeURIComponent(data.instanceName)}`, {
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            byEvents: false,
+            base64: false,
+            events: ["MESSAGES_UPSERT"]
+          }
+        }).then(r => {
+          console.log(`[Auto-Webhook] Re-registered webhook for ${data.instanceName}:`, r.status);
+        }).catch(e => {
+          console.warn(`[Auto-Webhook] Failed to register webhook: ${e.message}`);
+        });
+
         return sendJson(res, 200, { success: true, config: updated });
       }
       return sendJson(res, 400, { error: 'instanceName is required' });
@@ -576,6 +600,35 @@ ESSENTIAL RULES:
       const instanceName = parsedUrl.searchParams.get('instance') || 'default';
       const config = getEffectiveConfig(instanceName);
       return sendJson(res, 200, config);
+    }
+
+    // 4b. Ensure Webhook: POST /api/ensure-webhook
+    // Explicitly re-registers webhook on Evolution API — called on every page load
+    if (action === 'ensure-webhook' && req.method === 'POST') {
+      const data = await getBody(req);
+      const instanceName = data.instanceName;
+      if (!instanceName) return sendJson(res, 400, { error: 'instanceName required' });
+
+      const config = getEffectiveConfig(instanceName);
+      const evoServer = data.serverUrl || config.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+      const evoKey = data.serverKey || config.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+      const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(instanceName)}`;
+
+      try {
+        const result = await forwardToEvolution(evoServer, evoKey, 'POST', `/webhook/set/${encodeURIComponent(instanceName)}`, {
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            byEvents: false,
+            base64: false,
+            events: ["MESSAGES_UPSERT"]
+          }
+        });
+        console.log(`[Ensure-Webhook] Result for ${instanceName}:`, result.status);
+        return sendJson(res, 200, { success: true, webhookUrl, evoStatus: result.status, result: result.data });
+      } catch (e) {
+        return sendJson(res, 500, { error: e.message });
+      }
     }
 
     // 5. Test Chat with Multi-Turn History: POST /api/test-chat
