@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- QRCode Library for instant client-side QR generation from raw QR strings -->
+  <!-- QRCode Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -233,8 +233,8 @@
     }
 
     .spinner {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       border: 3px solid rgba(37, 211, 102, 0.2);
       border-top-color: var(--primary);
       border-radius: 50%;
@@ -575,54 +575,51 @@
         </form>
       </div>
 
-      <!-- Step 2A: Pairing Code View -->
-      <div id="pairing-view" style="display: none;">
-        <h1 id="pairing-greeting">Enter Code in WhatsApp</h1>
-        <p class="subtitle">Open WhatsApp on your phone and enter this 8-digit code:</p>
+      <!-- Step 2: Unified Link/Connect View -->
+      <div id="connect-view" style="display: none;">
+        <h1 id="connect-title">Link WhatsApp Device</h1>
+        <p class="subtitle" id="connect-subtitle">Scan QR code or enter code in WhatsApp</p>
 
-        <div class="pairing-code-box" id="pairing-code-box">
-          <div class="spinner" style="margin: 0 auto;"></div>
-        </div>
-
-        <div class="instructions">
-          <ol>
-            <li>Open WhatsApp on your phone</li>
-            <li>Tap <b>Menu (⋮)</b> or <b>Settings (⚙️)</b> ➔ <b>Linked Devices</b></li>
-            <li>Tap <b>Link a Device</b></li>
-            <li>Tap <b>"Link with phone number instead"</b> at the bottom</li>
-            <li>Type in the <b>8-digit code</b> shown above</li>
-          </ol>
-        </div>
-
-        <div class="status-badge status-disconnected" id="pairing-status-badge">
-          <div class="dot-live dot-pulse"></div>
-          <span id="pairing-status-text">Waiting for code to be entered...</span>
-        </div>
-      </div>
-
-      <!-- Step 2B: QR Code View -->
-      <div id="qr-view" style="display: none;">
-        <h1>Scan QR Code</h1>
-        <p class="subtitle">Scan the QR code below with your WhatsApp camera</p>
-
-        <div class="qr-container" id="qr-canvas-holder">
-          <div id="qr-loading" style="display: flex; flex-direction: column; align-items: center; color: #64748b; font-size: 0.85rem;">
-            <div class="spinner"></div>
-            <span style="margin-top: 10px;">Generating QR Code...</span>
+        <!-- Pairing Code Box (Shown when valid code exists) -->
+        <div id="pairing-code-section" style="display: none;">
+          <div class="pairing-code-box" id="pairing-code-val">
+            --------
           </div>
-          <img id="qr-image" style="display: none;" alt="WhatsApp QR Code" />
+          <div class="instructions">
+            <ol>
+              <li>Open WhatsApp on your phone</li>
+              <li>Tap <b>Linked Devices</b> ➔ <b>Link a Device</b></li>
+              <li>Tap <b>"Link with phone number instead"</b> at the bottom</li>
+              <li>Type in the <b>8-digit code</b> above</li>
+            </ol>
+          </div>
         </div>
 
-        <div class="instructions">
-          <ol>
-            <li>Open WhatsApp ➔ <b>Linked Devices</b> ➔ <b>Link a Device</b></li>
-            <li>Point camera at the QR code above</li>
-          </ol>
+        <!-- Visual QR Code Container (Shown when QR exists) -->
+        <div id="qr-code-section" style="display: none;">
+          <div class="qr-container">
+            <div id="qr-target">
+              <div class="spinner" style="margin: 80px auto;"></div>
+            </div>
+          </div>
+          <div class="instructions">
+            <ol>
+              <li>Open WhatsApp on your phone</li>
+              <li>Tap <b>Linked Devices</b> ➔ <b>Link a Device</b></li>
+              <li>Point your camera at the QR code above</li>
+            </ol>
+          </div>
         </div>
 
-        <div class="status-badge status-disconnected" id="qr-status-badge">
+        <div class="status-badge status-disconnected" style="margin-bottom: 12px;">
           <div class="dot-live dot-pulse"></div>
-          <span id="qr-status-text">Waiting for scan...</span>
+          <span id="connect-status-text">Waiting for WhatsApp connection...</span>
+        </div>
+
+        <div>
+          <button type="button" onclick="startFreshSignup()" style="background: transparent; border: none; color: #94a3b8; font-size: 0.78rem; text-decoration: underline; cursor: pointer;">
+            ← Start New Account / Change Settings
+          </button>
         </div>
       </div>
 
@@ -800,7 +797,6 @@ How can we help you today? You can ask about:
       return { server, key };
     }
 
-    // Proxy helper for Evolution API calls to avoid CORS / Mixed Content
     async function callEvolution(path, method = 'GET', body = null) {
       const { server, key } = getServerConfig();
       const headers = {
@@ -869,33 +865,33 @@ How can we help you today? You can ask about:
       } else {
         document.getElementById('auth-section').style.display = 'flex';
         document.getElementById('dashboard-app').style.display = 'none';
-        showAuthView('signup-view');
+        document.getElementById('signup-view').style.display = 'block';
+        document.getElementById('connect-view').style.display = 'none';
       }
     });
 
-    function showAuthView(viewId) {
-      ['signup-view', 'pairing-view', 'qr-view'].forEach(id => {
-        document.getElementById(id).style.display = id === viewId ? 'block' : 'none';
-      });
+    function startFreshSignup() {
+      clearInterval(pollInterval);
+      clearInterval(dashboardPoll);
+      clearSession();
+      document.getElementById('signup-view').style.display = 'block';
+      document.getElementById('connect-view').style.display = 'none';
     }
 
-    // Helper to render QR from base64 or raw code
-    function renderQRCode(base64OrRaw) {
-      showAuthView('qr-view');
-      const holder = document.getElementById('qr-canvas-holder');
-      const loading = document.getElementById('qr-loading');
-      const qrImg = document.getElementById('qr-image');
-      
-      if (loading) loading.style.display = 'none';
+    // Display QR cleanly on screen
+    function showVisualQRCode(qrData) {
+      document.getElementById('pairing-code-section').style.display = 'none';
+      document.getElementById('qr-code-section').style.display = 'block';
+      document.getElementById('connect-subtitle').innerText = "Scan this QR code with your WhatsApp camera";
 
-      if (base64OrRaw.startsWith('data:image')) {
-        qrImg.src = base64OrRaw;
-        qrImg.style.display = 'block';
+      const target = document.getElementById('qr-target');
+      target.innerHTML = '';
+
+      if (qrData.startsWith('data:image')) {
+        target.innerHTML = `<img src="${qrData}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;" alt="QR Code" />`;
       } else {
-        // Render via QRCode.js
-        holder.innerHTML = '';
-        new QRCode(holder, {
-          text: base64OrRaw,
+        new QRCode(target, {
+          text: qrData,
           width: 216,
           height: 216,
           colorDark: "#000000",
@@ -903,6 +899,14 @@ How can we help you today? You can ask about:
           correctLevel: QRCode.CorrectLevel.M
         });
       }
+    }
+
+    // Display 8-digit Pairing code cleanly on screen
+    function showPairingCode(code) {
+      document.getElementById('qr-code-section').style.display = 'none';
+      document.getElementById('pairing-code-section').style.display = 'block';
+      document.getElementById('pairing-code-val').innerText = code;
+      document.getElementById('connect-subtitle').innerText = "Enter this 8-digit code in WhatsApp > Linked Devices";
     }
 
     // Signup & Auto-Provision Instance + AI Webhook
@@ -928,10 +932,10 @@ How can we help you today? You can ask about:
       saveSession({ name, email, phone, instanceName, webhookUrl });
 
       btn.disabled = true;
-      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Provisioning on Evolution...`;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Initializing Instance...`;
 
       try {
-        // 1. Create Evolution Instance via Proxy
+        // 1. Create Evolution Instance
         const createRes = await callEvolution('/instance/create', 'POST', {
           instanceName: instanceName,
           integration: 'WHATSAPP-BAILEYS',
@@ -942,7 +946,7 @@ How can we help you today? You can ask about:
           throw new Error(createRes.response?.message || createRes.error || 'Check Evolution API Key or URL');
         }
 
-        // 2. Automatically bind AI Webhook with MESSAGES_UPSERT
+        // 2. Set Webhook
         await callEvolution(`/webhook/set/${encodeURIComponent(instanceName)}`, 'POST', {
           webhook: {
             enabled: true,
@@ -966,14 +970,12 @@ How can we help you today? You can ask about:
           })
         });
 
-        if (connectMode === 'phone') {
-          showAuthView('pairing-view');
-          document.getElementById("pairing-greeting").innerText = `Pairing Code for ${name}`;
-          await fetchPairingCode(instanceName, phone);
-        } else {
-          showAuthView('qr-view');
-          await fetchQR(instanceName);
-        }
+        // Switch to Connect View
+        document.getElementById('signup-view').style.display = 'none';
+        document.getElementById('connect-view').style.display = 'block';
+        document.getElementById('connect-title').innerText = `Link WhatsApp for ${name}`;
+
+        await fetchConnectionCredentials(instanceName, connectMode === 'phone' ? phone : null);
 
         clearInterval(pollInterval);
         pollInterval = setInterval(() => checkConnectionProgress(instanceName), 2000);
@@ -985,48 +987,34 @@ How can we help you today? You can ask about:
       }
     }
 
-    async function fetchPairingCode(instanceName, phone) {
-      const codeBox = document.getElementById("pairing-code-box");
-      const statusText = document.getElementById("pairing-status-text");
+    async function fetchConnectionCredentials(instanceName, phone) {
+      const path = phone ? `/instance/connect/${encodeURIComponent(instanceName)}?number=${phone}` : `/instance/connect/${encodeURIComponent(instanceName)}`;
       let retries = 0;
-      while (retries < 20) {
-        try {
-          const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}?number=${phone}`);
-          
-          // Strict check: Genuine 8-digit Pairing Code (no '@' symbol and max 10 chars)
-          const genuinePairingCode = (data.pairingCode || data.code || data.pairing_code);
-          if (genuinePairingCode && !genuinePairingCode.includes('@') && genuinePairingCode.length <= 10) {
-            codeBox.innerText = genuinePairingCode;
-            statusText.innerText = "Enter this 8-digit code in WhatsApp > Linked Devices";
-            return;
-          } else if (data.base64 || (genuinePairingCode && genuinePairingCode.includes('@'))) {
-            // It's a QR code string/image! Render the actual QR image cleanly
-            renderQRCode(data.base64 || genuinePairingCode);
-            return;
-          }
-        } catch (e) {}
-        retries++;
-        await new Promise(r => setTimeout(r, 1500));
-      }
-      codeBox.innerHTML = `<span style="font-size: 1rem; color: #f87171;">Pairing timeout.</span><br><button onclick="fetchPairingCode('${instanceName}', '${phone}')" class="btn" style="margin-top: 10px; padding: 8px;">🔄 Retry</button>`;
-    }
 
-    async function fetchQR(instanceName) {
-      const qrLoading = document.getElementById("qr-loading");
-      let retries = 0;
-      while (retries < 20) {
+      while (retries < 25) {
         try {
-          const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}`);
-          const rawCode = data.base64 || data.code;
-          if (rawCode) {
-            renderQRCode(rawCode);
+          const data = await callEvolution(path);
+
+          // 1. Is there an 8-digit Pairing Code? (Must NOT contain '@' and length <= 10)
+          const genuineCode = data.pairingCode || data.pairing_code;
+          if (genuineCode && !genuineCode.includes('@') && genuineCode.length <= 10) {
+            showPairingCode(genuineCode);
+            return;
+          }
+
+          // 2. Is there a QR Code? (base64 image or raw '2@...' string)
+          const qrData = data.base64 || data.code;
+          if (qrData) {
+            showVisualQRCode(qrData);
             return;
           }
         } catch (e) {}
+
         retries++;
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 1400));
       }
-      qrLoading.innerHTML = `<span style="color: #f87171;">QR Timeout.</span><br><button onclick="fetchQR('${instanceName}')" class="btn" style="margin-top: 10px; padding: 8px;">🔄 Retry</button>`;
+
+      document.getElementById('connect-status-text').innerText = "Connection timeout. Please retry.";
     }
 
     async function checkConnectionProgress(instanceName) {
@@ -1183,15 +1171,11 @@ How can we help you today? You can ask about:
       if (!session) return;
       document.getElementById('dashboard-app').style.display = 'none';
       document.getElementById('auth-section').style.display = 'flex';
-      showAuthView('pairing-view');
-      document.getElementById("pairing-greeting").innerText = `Link WhatsApp for ${session.name}`;
+      document.getElementById('signup-view').style.display = 'none';
+      document.getElementById('connect-view').style.display = 'block';
+      document.getElementById('connect-title').innerText = `Link WhatsApp for ${session.name}`;
 
-      if (session.phone) {
-        fetchPairingCode(session.instanceName, session.phone);
-      } else {
-        showAuthView('qr-view');
-        fetchQR(session.instanceName);
-      }
+      fetchConnectionCredentials(session.instanceName, session.phone || null);
 
       clearInterval(pollInterval);
       pollInterval = setInterval(() => checkConnectionProgress(session.instanceName), 2000);
@@ -1204,7 +1188,8 @@ How can we help you today? You can ask about:
         clearSession();
         document.getElementById('dashboard-app').style.display = 'none';
         document.getElementById('auth-section').style.display = 'flex';
-        showAuthView('signup-view');
+        document.getElementById('signup-view').style.display = 'block';
+        document.getElementById('connect-view').style.display = 'none';
       }
     }
   </script>
