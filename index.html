@@ -743,9 +743,14 @@
             <p class="card-desc">Test your bot live right here! Try asking "Hi", "Pricing", or "Hours".</p>
 
             <div class="chat-preview-box">
-              <div class="chat-header">
-                <div class="dot-live" style="background: var(--primary);"></div>
-                <span id="chat-preview-title">Apex Dental AI Assistant</span>
+              <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="dot-live" style="background: var(--primary);"></div>
+                  <span id="chat-preview-title">Avadaspace Design LLC AI Assistant</span>
+                </div>
+                <button type="button" onclick="clearSimulatorChat()" style="background: transparent; border: 1px solid var(--card-border); color: #94a3b8; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; cursor: pointer;">
+                  🔄 Clear Chat
+                </button>
               </div>
 
               <div class="chat-messages" id="chat-messages">
@@ -1149,6 +1154,15 @@ How can we help you today? You can ask about:
       }
     }
 
+    let simulatorHistory = [];
+
+    function clearSimulatorChat() {
+      simulatorHistory = [];
+      const messagesDiv = document.getElementById('chat-messages');
+      const bName = document.getElementById('cfg-business-name')?.value || 'our team';
+      messagesDiv.innerHTML = `<div class="msg-bubble msg-bot">👋 Hello! Welcome to ${bName}. How can I assist you today? Feel free to ask about our services, pricing, or hours!</div>`;
+    }
+
     async function sendTestChatMessage() {
       const input = document.getElementById('chat-test-input');
       const text = input.value.trim();
@@ -1181,6 +1195,7 @@ How can we help you today? You can ask about:
             catalogMediaUrl, 
             welcomeMediaUrl, 
             locationMediaUrl, 
+            history: simulatorHistory,
             message: text 
           })
         });
@@ -1192,7 +1207,14 @@ How can we help you today? You can ask about:
         if (data.mediaUrl) {
           bubble.innerHTML += `<div style="margin-bottom: 8px;"><img src="${data.mediaUrl}" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px;" onerror="this.style.display='none'" /></div>`;
         }
-        bubble.innerHTML += `<div>${data.reply || 'No response'}</div>`;
+        
+        const replyText = data.reply || 'No response';
+        bubble.innerHTML += `<div>${replyText}</div>`;
+
+        // Update multi-turn history
+        simulatorHistory.push({ role: 'user', parts: [{ text: text }] });
+        simulatorHistory.push({ role: 'model', parts: [{ text: replyText }] });
+        if (simulatorHistory.length > 12) simulatorHistory = simulatorHistory.slice(-12);
 
       } catch (err) {
         document.getElementById(botMsgId).innerText = 'Error calling Gemini AI: ' + err.message;
