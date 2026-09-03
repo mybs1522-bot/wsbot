@@ -157,19 +157,19 @@ function generateSmartReply(userMessage, businessName, faqs, conversationHistory
   return `I'm here to help${nameTag}! 😊 You can tell me what service you're looking for, or ask about our *pricing*, *timings*, or *booking a slot*. How can I best assist you?`;
 }
 
-// Low-level HTTP helper to call Google Gemini API with fallback models
-function makeGeminiRequest(key, modelName, payload) {
+// Low-level HTTP helper to call Google Gemini API with fallback endpoints and models
+function makeGeminiRequest(key, apiVersion, modelName, payload) {
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
+      path: `/${apiVersion}/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': key,
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 8000
+      timeout: 9000
     }, res => {
       let data = '';
       res.on('data', c => data += c);
@@ -177,13 +177,13 @@ function makeGeminiRequest(key, modelName, payload) {
         try {
           const json = JSON.parse(data);
           if (json.error) {
-            reject(new Error(json.error.message || JSON.stringify(json.error)));
+            reject(new Error(`[${apiVersion}/${modelName}] ${json.error.message}`));
           } else {
             const reply = json.candidates?.[0]?.content?.parts?.[0]?.text;
             if (reply && reply.trim().length > 0) {
               resolve(reply.trim());
             } else {
-              reject(new Error('Empty candidate reply from Gemini'));
+              reject(new Error(`Empty reply from ${modelName}`));
             }
           }
         } catch (e) {
@@ -233,15 +233,23 @@ async function callGeminiWithHistory(apiKey, systemPrompt, conversationHistory, 
     }
   });
 
-  // Try gemini-1.5-flash, then gemini-2.0-flash, then gemini-pro
-  const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-pro'];
-  for (const model of models) {
+  // Try robust combinations: v1beta and v1 across flash-latest, flash, 2.0-flash, pro
+  const attempts = [
+    { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
+    { version: 'v1',     model: 'gemini-1.5-flash' },
+    { version: 'v1beta', model: 'gemini-2.0-flash' },
+    { version: 'v1beta', model: 'gemini-2.0-flash-exp' },
+    { version: 'v1beta', model: 'gemini-1.5-pro' },
+    { version: 'v1',     model: 'gemini-pro' }
+  ];
+
+  for (const { version, model } of attempts) {
     try {
-      const reply = await makeGeminiRequest(cleanKey, model, payload);
-      console.log(`[Gemini Engine] Success with ${model}`);
+      const reply = await makeGeminiRequest(cleanKey, version, model, payload);
+      console.log(`[Gemini Engine] Success with ${version}/${model}`);
       return reply;
     } catch (err) {
-      console.warn(`[Gemini Engine] Error with ${model}: ${err.message}`);
+      console.warn(`[Gemini Engine] Attempt failed: ${err.message}`);
     }
   }
 
