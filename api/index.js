@@ -345,15 +345,25 @@ export default async function handler(req, res) {
 
     if (action === 'debug-gemini' || rawUrl.includes('debug-gemini')) {
       const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-      try {
-        const payload = JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Hello, are you online?' }] }]
+      return new Promise((resolve) => {
+        https.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`, res => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data);
+              const modelNames = json.models ? json.models.map(m => m.name) : json;
+              sendJson(res, 200, { success: true, models: modelNames });
+            } catch (e) {
+              sendJson(res, 200, { success: false, raw: data });
+            }
+            resolve();
+          });
+        }).on('error', err => {
+          sendJson(res, 500, { error: err.message });
+          resolve();
         });
-        const reply = await makeGeminiRequest(key, 'gemini-1.5-flash', payload);
-        return sendJson(res, 200, { success: true, reply });
-      } catch (err) {
-        return sendJson(res, 200, { success: false, error: err.message });
-      }
+      });
     }
 
     // 1. Evolution API Proxy: /api/evo/*
