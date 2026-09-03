@@ -959,26 +959,37 @@ How can we help you today? You can ask about:
 
     async function fetchPairingCode(instanceName, phone) {
       const codeBox = document.getElementById("pairing-code-box");
+      const statusText = document.getElementById("pairing-status-text");
       let retries = 0;
-      while (retries < 15) {
+      while (retries < 20) {
         try {
           const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}?number=${phone}`);
-          if (data.pairingCode) {
-            codeBox.innerText = data.pairingCode;
+          const code = data.pairingCode || data.code || data.pairing_code;
+          if (code) {
+            codeBox.innerText = code;
+            statusText.innerText = "Enter the 8-digit code in WhatsApp > Linked Devices";
+            return;
+          } else if (data.base64) {
+            // Fallback: Show QR if pairing code is not supported by backend version
+            showAuthView('qr-view');
+            const qrImg = document.getElementById("qr-image");
+            document.getElementById("qr-loading").style.display = "none";
+            qrImg.src = data.base64;
+            qrImg.style.display = "block";
             return;
           }
         } catch (e) {}
         retries++;
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1500));
       }
-      codeBox.innerText = "Timeout. Refresh & retry.";
+      codeBox.innerHTML = `<span style="font-size: 1rem; color: #f87171;">Failed to fetch code.</span><br><button onclick="fetchPairingCode('${instanceName}', '${phone}')" class="btn" style="margin-top: 10px; padding: 8px;">🔄 Retry</button>`;
     }
 
     async function fetchQR(instanceName) {
       const qrLoading = document.getElementById("qr-loading");
       const qrImg = document.getElementById("qr-image");
       let retries = 0;
-      while (retries < 15) {
+      while (retries < 20) {
         try {
           const data = await callEvolution(`/instance/connect/${encodeURIComponent(instanceName)}`);
           if (data.base64) {
@@ -989,8 +1000,9 @@ How can we help you today? You can ask about:
           }
         } catch (e) {}
         retries++;
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1500));
       }
+      qrLoading.innerHTML = `<span style="color: #f87171;">QR Timeout.</span><br><button onclick="fetchQR('${instanceName}')" class="btn" style="margin-top: 10px; padding: 8px;">🔄 Retry</button>`;
     }
 
     async function checkConnectionProgress(instanceName) {

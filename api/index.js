@@ -1,6 +1,6 @@
 import https from 'https';
 import http from 'http';
-import { URL } from 'url';
+import { URL, URLSearchParams } from 'url';
 
 // Global in-memory storage for serverless runtime
 const memoryConfigs = {};
@@ -206,8 +206,18 @@ export default async function handler(req, res) {
   const rawUrl = req.url || '';
   const parsedUrl = new URL(rawUrl, 'http://localhost');
   const action = parsedUrl.searchParams.get('action') || '';
-  const pathParam = parsedUrl.searchParams.get('path') || '';
+  let pathParam = parsedUrl.searchParams.get('path') || '';
   const instanceParam = parsedUrl.searchParams.get('instance') || '';
+
+  // Preserve all extra query parameters (e.g. ?number=919811343771)
+  const queryParams = new URLSearchParams(parsedUrl.search);
+  queryParams.delete('action');
+  queryParams.delete('path');
+  queryParams.delete('instance');
+  const extraQuery = queryParams.toString();
+  if (extraQuery) {
+    pathParam += (pathParam.includes('?') ? '&' : '?') + extraQuery;
+  }
 
   try {
     // 1. Evolution API Proxy: /api/evo/*
