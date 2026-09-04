@@ -1220,25 +1220,39 @@ How can we help you today? You can ask about:
     }
 
     async function showDashboardApp(session) {
-      document.getElementById('auth-section').style.display = 'none';
+      if (!session) return;
+      const authSec = document.getElementById('auth-section');
       const app = document.getElementById('dashboard-app');
-      app.style.display = 'flex';
+      if (authSec) authSec.style.display = 'none';
+      if (app) app.style.display = 'flex';
 
-      document.getElementById('dash-user-name').innerText = session.name || 'User';
-      document.getElementById('dash-phone-display').innerText = session.phone || 'Connected WhatsApp Number';
-      document.getElementById('dash-instance-id').innerText = session.instanceName;
-      document.getElementById('cfg-business-name').value = session.name || 'My Business';
-      document.getElementById('chat-preview-title').innerText = `${session.name || 'AI'} Assistant`;
+      const userNameEl = document.getElementById('dash-user-name');
+      const phoneDispEl = document.getElementById('dash-phone-display');
+      const instanceIdEl = document.getElementById('dash-instance-id');
+      const bizNameEl = document.getElementById('cfg-business-name');
+      const chatTitleEl = document.getElementById('chat-preview-title');
+
+      if (userNameEl) userNameEl.innerText = session.name || 'User';
+      if (phoneDispEl) phoneDispEl.innerText = session.phone || 'Connected WhatsApp Number';
+      if (instanceIdEl) instanceIdEl.innerText = session.instanceName || '-';
+      if (bizNameEl && !bizNameEl.value) bizNameEl.value = session.name || 'My Business';
+      if (chatTitleEl) chatTitleEl.innerText = `${session.name || 'AI'} Assistant`;
+
+      // Set optimistic connected state right away
+      const badge = document.getElementById('dash-status-badge');
+      const text = document.getElementById('dash-status-text');
+      if (badge) badge.className = 'status-badge status-connected';
+      if (text) text.innerText = '● WhatsApp Connected';
 
       // Restore from localStorage first for instant display
       try {
         const localCfg = JSON.parse(localStorage.getItem('botflow_customizer_config') || '{}');
-        if (localCfg.businessName) document.getElementById('cfg-business-name').value = localCfg.businessName;
-        if (localCfg.geminiKey) document.getElementById('cfg-gemini-key').value = localCfg.geminiKey;
-        if (localCfg.faqs) document.getElementById('cfg-faqs').value = localCfg.faqs;
-        if (localCfg.catalogMediaUrl) document.getElementById('cfg-catalog-media').value = localCfg.catalogMediaUrl;
-        if (localCfg.welcomeMediaUrl) document.getElementById('cfg-welcome-media').value = localCfg.welcomeMediaUrl;
-        if (localCfg.locationMediaUrl) document.getElementById('cfg-location-media').value = localCfg.locationMediaUrl;
+        if (localCfg.businessName && document.getElementById('cfg-business-name')) document.getElementById('cfg-business-name').value = localCfg.businessName;
+        if (localCfg.geminiKey && document.getElementById('cfg-gemini-key')) document.getElementById('cfg-gemini-key').value = localCfg.geminiKey;
+        if (localCfg.faqs && document.getElementById('cfg-faqs')) document.getElementById('cfg-faqs').value = localCfg.faqs;
+        if (localCfg.catalogMediaUrl && document.getElementById('cfg-catalog-media')) document.getElementById('cfg-catalog-media').value = localCfg.catalogMediaUrl;
+        if (localCfg.welcomeMediaUrl && document.getElementById('cfg-welcome-media')) document.getElementById('cfg-welcome-media').value = localCfg.welcomeMediaUrl;
+        if (localCfg.locationMediaUrl && document.getElementById('cfg-location-media')) document.getElementById('cfg-location-media').value = localCfg.locationMediaUrl;
       } catch (e) {}
 
       // === AUTO-ACTIVATION: Push config + re-register webhook on every page load ===
@@ -1254,12 +1268,12 @@ How can we help you today? You can ask about:
       try {
         const res = await fetch(`/api/bot-config?instance=${encodeURIComponent(session.instanceName)}`);
         const cfg = await res.json();
-        if (cfg.businessName) document.getElementById('cfg-business-name').value = cfg.businessName;
-        if (cfg.geminiKey) document.getElementById('cfg-gemini-key').value = cfg.geminiKey;
-        if (cfg.faqs) document.getElementById('cfg-faqs').value = cfg.faqs;
-        if (cfg.catalogMediaUrl) document.getElementById('cfg-catalog-media').value = cfg.catalogMediaUrl;
-        if (cfg.welcomeMediaUrl) document.getElementById('cfg-welcome-media').value = cfg.welcomeMediaUrl;
-        if (cfg.locationMediaUrl) document.getElementById('cfg-location-media').value = cfg.locationMediaUrl;
+        if (cfg.businessName && document.getElementById('cfg-business-name')) document.getElementById('cfg-business-name').value = cfg.businessName;
+        if (cfg.geminiKey && document.getElementById('cfg-gemini-key')) document.getElementById('cfg-gemini-key').value = cfg.geminiKey;
+        if (cfg.faqs && document.getElementById('cfg-faqs')) document.getElementById('cfg-faqs').value = cfg.faqs;
+        if (cfg.catalogMediaUrl && document.getElementById('cfg-catalog-media')) document.getElementById('cfg-catalog-media').value = cfg.catalogMediaUrl;
+        if (cfg.welcomeMediaUrl && document.getElementById('cfg-welcome-media')) document.getElementById('cfg-welcome-media').value = cfg.welcomeMediaUrl;
+        if (cfg.locationMediaUrl && document.getElementById('cfg-location-media')) document.getElementById('cfg-location-media').value = cfg.locationMediaUrl;
       } catch (e) {}
 
       clearInterval(dashboardPoll);
