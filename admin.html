@@ -308,7 +308,13 @@
       <div class="controls-bar">
         <input type="text" id="table-search" class="search-input" placeholder="🔍 Search by business, phone, or instance..." oninput="filterTable()" />
         
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <div style="font-size: 0.72rem; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>🛡️ Anti-Ban Engine: <b>Active (1.5-3.5s Delays)</b></span>
+          </div>
+          <button onclick="triggerCronReconnect()" id="cron-btn" class="btn btn-secondary btn-sm" title="Check & revive all disconnected WhatsApp instances">
+            <span>⚡ Run Auto-Reconnect Worker</span>
+          </button>
           <button onclick="fetchAdminData()" class="btn btn-secondary btn-sm">
             <span>🔄 Refresh Data</span>
           </button>
@@ -585,6 +591,23 @@
         }
       } catch (err) {
         alert("Failed to toggle bot: " + err.message);
+      }
+    }
+
+    async function triggerCronReconnect() {
+      const btn = document.getElementById('cron-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Checking & Reviving Instances...</span>`;
+      try {
+        const res = await fetch('/api/cron-reconnect');
+        const data = await res.json();
+        alert(`Auto-Reconnect Worker Completed!\n\n• Total Checked: ${data.totalChecked || 0}\n• Reconnected: ${data.reconnectedCount || 0}\n• Timestamp: ${new Date().toLocaleTimeString()}`);
+        fetchAdminData();
+      } catch (e) {
+        alert('Worker error: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>⚡ Run Auto-Reconnect Worker</span>`;
       }
     }
 

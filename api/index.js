@@ -663,6 +663,24 @@ ESSENTIAL RULES:
             const evoServer = getEvolutionServer(botConfig.serverUrl);
             const evoKey = getEvolutionKey(req.headers['apikey'] || botConfig.serverKey);
 
+            // ==================== ANTI-BAN PROTECTION ENGINE ====================
+            // 1. Calculate natural human reading & typing delay (1.5s to 3.5s)
+            const baseDelay = Math.floor(Math.random() * 1000) + 1500; // 1500ms - 2500ms
+            const lengthFactor = Math.min(1000, Math.floor(aiReply.length * 8)); // Scaled by reply length
+            const naturalDelay = Math.min(3500, baseDelay + lengthFactor); // Hard capped at 3500ms
+
+            console.log(`[Anti-Ban Protection] [${instanceName}] Simulating human typing presence for ${naturalDelay}ms to ${senderPhone}...`);
+
+            // 2. Send live "composing..." typing status to WhatsApp
+            forwardToEvolution(evoServer, evoKey, 'POST', `/chat/sendPresence/${encodeURIComponent(instanceName)}`, {
+              number: senderPhone,
+              presence: 'composing',
+              delay: naturalDelay
+            }).catch(e => console.warn('[Anti-Ban Presence]:', e.message));
+
+            // 3. Wait the human typing duration before sending message
+            await new Promise(r => setTimeout(r, naturalDelay));
+
             // Media attachment detection with Google Drive auto-transform
             const lowerMsg = userText.toLowerCase();
             let rawMedia = null;
@@ -690,11 +708,11 @@ ESSENTIAL RULES:
                 fileName: `media_attachment.${mediatype === 'document' ? 'pdf' : (mediatype === 'video' ? 'mp4' : 'jpg')}`
               });
             } else {
-              // Standard Text Message
+              // Standard Text Message with anti-ban delay
               await forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
                 number: senderPhone,
                 text: aiReply,
-                delay: 1000
+                delay: 0
               });
             }
           }
@@ -900,6 +918,45 @@ ESSENTIAL RULES:
         return sendJson(res, 200, { success: true, instanceName, enabled: cfg.enabled });
       }
       return sendJson(res, 400, { error: 'instanceName required' });
+    }
+
+    // 6. Auto-Reconnection Worker & Self-Healing Cron: /api/cron-reconnect
+    if (action === 'cron-reconnect' || rawUrl.includes('/cron-reconnect') || rawUrl.includes('/cron/reconnect')) {
+      const evoServer = getEvolutionServer();
+      const evoKey = getEvolutionKey();
+      
+      const instancesRes = await forwardToEvolution(evoServer, evoKey, 'GET', '/instance/fetchInstances');
+      const instances = Array.isArray(instancesRes.data) ? instancesRes.data : [];
+      
+      const results = [];
+      let reconnectedCount = 0;
+
+      for (const inst of instances) {
+        const instName = inst.name || inst.instance?.instanceName;
+        const status = inst.connectionStatus || inst.state || inst.instance?.state || inst.status;
+
+        if (instName && (status === 'close' || status === 'connecting' || status === 'closed')) {
+          console.log(`[Auto-Reconnect Worker] Re-establishing disconnected instance: ${instName} (current state: ${status})`);
+          try {
+            const reconnectRes = await forwardToEvolution(evoServer, evoKey, 'GET', `/instance/connect/${encodeURIComponent(instName)}`);
+            results.push({ instance: instName, previousState: status, reconnected: true, result: reconnectRes.status });
+            reconnectedCount++;
+          } catch (e) {
+            results.push({ instance: instName, previousState: status, error: e.message });
+          }
+        } else {
+          results.push({ instance: instName, state: status, healthy: true });
+        }
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        worker: 'BotFlow Self-Healing Auto-Reconnection Cron',
+        totalChecked: instances.length,
+        reconnectedCount,
+        timestamp: new Date().toISOString(),
+        details: results
+      });
     }
 
     // 5. Test Chat with Multi-Turn History: POST /api/test-chat

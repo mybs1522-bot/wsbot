@@ -3,6 +3,7 @@
   "routes": [
     { "src": "/admin", "dest": "/api/index.js?action=admin-page" },
     { "src": "/admin.html", "dest": "/api/index.js?action=admin-page" },
+    { "src": "/api/cron-reconnect", "dest": "/api/index.js?action=cron-reconnect" },
     { "src": "/api/evo/(.*)", "dest": "/api/index.js?action=evo&path=/$1" },
     { "src": "/api/webhook/ai-agent/(.*)", "dest": "/api/index.js?action=webhook&instance=$1" },
     { "src": "/api/ensure-webhook", "dest": "/api/index.js?action=ensure-webhook" },
@@ -10,5 +11,11 @@
     { "src": "/api/(.*)", "dest": "/api/index.js?action=$1" },
     { "src": "/", "dest": "/connect.html" },
     { "src": "/(.*)", "dest": "/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-reconnect",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }
