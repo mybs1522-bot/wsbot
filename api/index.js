@@ -1,5 +1,7 @@
 import https from 'https';
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { URL, URLSearchParams } from 'url';
 
 // Supabase Database Integration (Postgres Persistence)
@@ -512,6 +514,26 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Admin Page HTML Server: /admin or /admin.html
+    if (action === 'admin-page' || rawUrl.includes('/admin') && !rawUrl.includes('/api/admin/')) {
+      try {
+        const filePath = path.join(process.cwd(), 'admin.html');
+        if (fs.existsSync(filePath)) {
+          const html = fs.readFileSync(filePath, 'utf8');
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.statusCode = 200;
+          res.end(html);
+          return;
+        }
+      } catch (err) {}
+
+      // Embedded fallback if file read is not supported in environment
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.statusCode = 200;
+      res.end(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=/admin.html"></head><body>Redirecting to Admin...</body></html>`);
+      return;
+    }
+
     // Status / Health Check Endpoint
     if (action === 'status' || rawUrl.includes('status')) {
       const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);

@@ -1,7 +1,8 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin", "destination": "/api/index.js?action=admin-page" },
+    { "source": "/admin.html", "destination": "/api/index.js?action=admin-page" },
     { "source": "/api/evo/(.*)", "destination": "/api/index.js?action=evo&path=/$1" },
     { "source": "/api/webhook/ai-agent/(.*)", "destination": "/api/index.js?action=webhook&instance=$1" },
     { "source": "/api/ensure-webhook", "destination": "/api/index.js?action=ensure-webhook" },
