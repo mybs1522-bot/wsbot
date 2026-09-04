@@ -271,16 +271,20 @@ function getEffectiveConfig(instanceName) {
   return autoConfig;
 }
 
-// Ultra-lightweight conversation memory cache (prevents server memory buildup)
+// Multi-turn conversation memory cache (16 messages / 24-hour retention)
 const conversationHistories = {};
 const historyTimestamps = {};
+
+// Human Intervention / Takeover Tracker (Pauses AI when a human operator messages)
+const humanInterventions = {};
+const botSentTimestamps = {};
 
 function getCustomerHistory(instanceName, senderId) {
   const key = `${instanceName}:${senderId}`;
   const now = Date.now();
 
-  // Auto-clean stale history older than 30 minutes to free RAM
-  if (historyTimestamps[key] && now - historyTimestamps[key] > 30 * 60 * 1000) {
+  // Auto-clean history after 24 hours of inactivity
+  if (historyTimestamps[key] && now - historyTimestamps[key] > 24 * 60 * 60 * 1000) {
     delete conversationHistories[key];
     delete historyTimestamps[key];
     return [];
@@ -298,13 +302,41 @@ function addToHistory(instanceName, senderId, role, text) {
 
   conversationHistories[key].push({
     role: role === 'user' ? 'user' : 'model',
-    parts: [{ text: text.slice(0, 500) }] // Cap max chars per message
+    parts: [{ text: text.slice(0, 1000) }]
   });
 
-  // Keep only the most recent 4 messages (2 conversational turns)
-  if (conversationHistories[key].length > 4) {
-    conversationHistories[key] = conversationHistories[key].slice(-4);
+  // Keep the most recent 16 messages (8 conversational turns)
+  if (conversationHistories[key].length > 16) {
+    conversationHistories[key] = conversationHistories[key].slice(-16);
   }
+}
+
+function recordBotSent(instanceName, senderId) {
+  const key = `${instanceName}:${senderId}`;
+  botSentTimestamps[key] = Date.now();
+}
+
+function recordHumanIntervention(instanceName, customerPhone) {
+  const key = `${instanceName}:${customerPhone}`;
+  const lastBotTime = botSentTimestamps[key] || 0;
+  // If this outgoing message was not sent by the AI in the last 4 seconds, a real human operator sent it
+  if (Date.now() - lastBotTime > 4000) {
+    humanInterventions[key] = Date.now();
+    console.log(`[Human Takeover] Manual message sent to ${customerPhone}. Bot auto-reply paused for 24 hours.`);
+  }
+}
+
+function isHumanIntervened(instanceName, senderId) {
+  const key = `${instanceName}:${senderId}`;
+  const takeoverTime = humanInterventions[key];
+  if (!takeoverTime) return false;
+
+  // Active for 24 hours
+  if (Date.now() - takeoverTime < 24 * 60 * 60 * 1000) {
+    return true;
+  }
+  delete humanInterventions[key];
+  return false;
 }
 
 // Helper to safely parse body in any Vercel/Node environment
@@ -705,6 +737,15 @@ export default async function handler(req, res) {
         const isFromMe = msgObj?.key?.fromMe;
         const remoteJid = msgObj?.key?.remoteJid || '';
 
+        // Track human operator manual outgoing messages from WhatsApp
+        if (isFromMe && remoteJid && !remoteJid.includes('@broadcast') && !remoteJid.includes('status@broadcast')) {
+          const customerPhone = remoteJid.split('@')[0].replace(/[^0-9]/g, '');
+          if (customerPhone) {
+            recordHumanIntervention(instanceName, customerPhone);
+          }
+          return sendJson(res, 200, { status: 'human_outgoing_tracked' });
+        }
+
         if (!isFromMe && !remoteJid.includes('@broadcast') && !remoteJid.includes('status@broadcast')) {
           const userText = msgObj?.message?.conversation || 
                            msgObj?.message?.extendedTextMessage?.text || 
@@ -714,6 +755,13 @@ export default async function handler(req, res) {
           if (userText && userText.trim().length > 0) {
             const senderPhone = remoteJid.split('@')[0].replace(/[^0-9]/g, '');
             console.log(`[WhatsApp Incoming] [${instanceName}] from ${senderPhone}: "${userText}"`);
+
+            // ==================== HUMAN INTERVENTION / TAKEOVER GUARD ====================
+            // If the human operator manually intervened and messaged this customer, pause AI auto-replies for 24 hours
+            if (isHumanIntervened(instanceName, senderPhone)) {
+              console.log(`[Human Takeover Active] [${instanceName}] Skipping AI auto-reply for ${senderPhone} because a human recently responded.`);
+              return sendJson(res, 200, { status: 'human_takeover_active', message: 'AI paused due to human operator intervention' });
+            }
 
             // Retrieve persistent bot configuration
             const botConfig = getEffectiveConfig(instanceName);
@@ -826,6 +874,9 @@ ESSENTIAL RULES:
             }
 
             const directMediaUrl = cleanMediaUrl(rawMedia);
+
+            // Record bot outgoing timestamp to distinguish from human operator manual typing
+            recordBotSent(instanceName, senderPhone);
 
             if (directMediaUrl) {
               const { mediatype, mimetype } = getMediaTypeAndMime(directMediaUrl);
