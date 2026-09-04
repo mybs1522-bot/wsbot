@@ -841,9 +841,25 @@ How can we help you today? You can ask about:
     let dashboardPoll = null;
 
     function getServerConfig() {
+      // Auto-migrate: replace any old/dead API keys with the current working key
+      const CURRENT_KEY = "ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3";
+      const DEAD_KEYS = ["429683C4C977415CAAFCCE10F7D57E11"];
+      
+      let key = localStorage.getItem('evo_key') || CURRENT_KEY;
+      if (DEAD_KEYS.includes(key)) {
+        key = CURRENT_KEY;
+        localStorage.setItem('evo_key', CURRENT_KEY);
+        console.log('[Config] Auto-migrated old API key to current key');
+      }
+
       const server = localStorage.getItem('evo_server') || "https://evolution-api-2gki.srv1722699.hstgr.cloud";
-      const key = localStorage.getItem('evo_key') || "ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3";
-      return { server, key };
+      // Ensure HTTPS (Hostinger redirects HTTP → HTTPS)
+      const httpsServer = server.replace(/^http:\/\//, 'https://');
+      if (httpsServer !== server) {
+        localStorage.setItem('evo_server', httpsServer);
+      }
+
+      return { server: httpsServer, key };
     }
 
     async function callEvolution(path, method = 'GET', body = null) {
