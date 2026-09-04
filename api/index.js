@@ -2,6 +2,29 @@ import https from 'https';
 import http from 'http';
 import { URL, URLSearchParams } from 'url';
 
+// Dynamic Environment Variable Resolvers for Evolution API
+function getEvolutionServer(override) {
+  const envVal = process.env.EVOLUTION_SERVER || process.env.EVOLUTION_URL || process.env.EVOLUTION_API_URL;
+  if (envVal && envVal.trim().length > 5) {
+    return envVal.trim().replace(/^http:\/\//, 'https://');
+  }
+  if (override && typeof override === 'string' && override.startsWith('http') && !override.includes('localhost')) {
+    return override.trim().replace(/^http:\/\//, 'https://');
+  }
+  return 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
+}
+
+function getEvolutionKey(override) {
+  const envVal = process.env.EVOLUTION_KEY || process.env.EVOLUTION_API_KEY || process.env.GLOBAL_API_KEY;
+  if (envVal && envVal.trim().length > 5) {
+    return envVal.trim();
+  }
+  if (override && typeof override === 'string' && override.trim().length > 10 && override !== '429683C4C977415CAAFCCE10F7D57E11') {
+    return override.trim();
+  }
+  return 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
+}
+
 // Durable Persistent Registry for Client Instances (Survives cold starts, restarts & redeployments)
 const persistentInstanceRegistry = {
   'avadaspace_design_llc_shaguny123_412': {
@@ -19,8 +42,8 @@ const persistentInstanceRegistry = {
     locationMediaUrl: 'https://lh3.googleusercontent.com/d/1O5vQRbxIT259y1wDCE1-JPjQ34dLtsry',
     catalogMediaUrl: '',
     welcomeMediaUrl: '',
-    serverUrl: 'https://evolution-api-2gki.srv1722699.hstgr.cloud',
-    serverKey: 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3',
+    serverUrl: getEvolutionServer(),
+    serverKey: getEvolutionKey(),
     enabled: true
   }
 };
@@ -51,6 +74,8 @@ function getEffectiveConfig(instanceName) {
     locationMediaUrl: '',
     catalogMediaUrl: '',
     welcomeMediaUrl: '',
+    serverUrl: getEvolutionServer(),
+    serverKey: getEvolutionKey(),
     enabled: true // Always active by default
   };
 
@@ -396,11 +421,15 @@ export default async function handler(req, res) {
   try {
     // Status / Health Check Endpoint
     if (action === 'status' || rawUrl.includes('status')) {
-      const hasKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+      const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+      const hasEvoServer = !!(process.env.EVOLUTION_SERVER || process.env.EVOLUTION_URL || process.env.EVOLUTION_API_URL);
+      const hasEvoKey = !!(process.env.EVOLUTION_KEY || process.env.EVOLUTION_API_KEY || process.env.GLOBAL_API_KEY);
       return sendJson(res, 200, {
         status: 'online',
-        geminiConfigured: hasKey,
-        keyLength: hasKey ? (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY).length : 0
+        geminiConfigured: hasGemini,
+        evolutionServerConfigured: hasEvoServer,
+        evolutionKeyConfigured: hasEvoKey,
+        evolutionServer: getEvolutionServer()
       });
     }
 
@@ -435,8 +464,8 @@ export default async function handler(req, res) {
     // 1. Evolution API Proxy: /api/evo/*
     if (action === 'evo' || rawUrl.includes('/api/evo/') || rawUrl.includes('/evo/')) {
       const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
-      const evoServer = req.headers['x-evo-server'] || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-      const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
+      const evoServer = getEvolutionServer(req.headers['x-evo-server']);
+      const evoKey = getEvolutionKey(req.headers['x-evo-key']);
 
       const bodyData = req.method !== 'GET' ? await getBody(req) : null;
       const result = await forwardToEvolution(evoServer, evoKey, req.method, evoPath, bodyData);
@@ -516,8 +545,8 @@ ESSENTIAL RULES:
             addToHistory(instanceName, senderPhone, 'user', userText);
             addToHistory(instanceName, senderPhone, 'model', aiReply);
 
-            const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-            const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
+            const evoServer = getEvolutionServer(botConfig.serverUrl);
+            const evoKey = getEvolutionKey(req.headers['apikey'] || botConfig.serverKey);
 
             // Media attachment detection with Google Drive auto-transform
             const lowerMsg = userText.toLowerCase();
@@ -571,8 +600,8 @@ ESSENTIAL RULES:
         persistentInstanceRegistry[data.instanceName] = updated;
 
         // Auto-register webhook on Evolution API (fire-and-forget for speed)
-        const evoServer = updated.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-        const evoKey = updated.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
+        const evoServer = getEvolutionServer(updated.serverUrl);
+        const evoKey = getEvolutionKey(updated.serverKey);
         const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(data.instanceName)}`;
 
         // Fire-and-forget webhook registration (don't block the response)
@@ -610,8 +639,8 @@ ESSENTIAL RULES:
       if (!instanceName) return sendJson(res, 400, { error: 'instanceName required' });
 
       const config = getEffectiveConfig(instanceName);
-      const evoServer = data.serverUrl || config.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-      const evoKey = data.serverKey || config.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
+      const evoServer = getEvolutionServer(data.serverUrl || config.serverUrl);
+      const evoKey = getEvolutionKey(data.serverKey || config.serverKey);
       const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(instanceName)}`;
 
       try {
