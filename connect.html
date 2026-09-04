@@ -1304,6 +1304,22 @@ How can we help you today? You can ask about:
       }
     }
 
+    function switchDashTab(tab) {
+      const configTab = document.getElementById('nav-bot-config');
+      const statusTab = document.getElementById('nav-status');
+      const configContent = document.getElementById('tab-content-bot-config');
+      const statusContent = document.getElementById('tab-content-status');
+
+      if (configTab) configTab.classList.toggle('active', tab === 'bot-config');
+      if (statusTab) statusTab.classList.toggle('active', tab === 'status');
+      if (configContent) configContent.style.display = tab === 'bot-config' ? 'block' : 'none';
+      if (statusContent) statusContent.style.display = tab === 'status' ? 'block' : 'none';
+
+      if (tab === 'status') {
+        monitorLive();
+      }
+    }
+
     let autoSaveTimer = null;
 
     function triggerAutoSave() {
