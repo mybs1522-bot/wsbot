@@ -20,7 +20,7 @@ const persistentInstanceRegistry = {
     catalogMediaUrl: '',
     welcomeMediaUrl: '',
     serverUrl: 'https://evolution-api-2gki.srv1722699.hstgr.cloud',
-    serverKey: '429683C4C977415CAAFCCE10F7D57E11',
+    serverKey: 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3',
     enabled: true
   }
 };
@@ -436,7 +436,7 @@ export default async function handler(req, res) {
     if (action === 'evo' || rawUrl.includes('/api/evo/') || rawUrl.includes('/evo/')) {
       const evoPath = pathParam || rawUrl.replace(/.*\/api\/evo/, '');
       const evoServer = req.headers['x-evo-server'] || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-      const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+      const evoKey = req.headers['x-evo-key'] || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
 
       const bodyData = req.method !== 'GET' ? await getBody(req) : null;
       const result = await forwardToEvolution(evoServer, evoKey, req.method, evoPath, bodyData);
@@ -517,7 +517,7 @@ ESSENTIAL RULES:
             addToHistory(instanceName, senderPhone, 'model', aiReply);
 
             const evoServer = botConfig.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-            const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+            const evoKey = req.headers['apikey'] || botConfig.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
 
             // Media attachment detection with Google Drive auto-transform
             const lowerMsg = userText.toLowerCase();
@@ -572,7 +572,7 @@ ESSENTIAL RULES:
 
         // Auto-register webhook on Evolution API (fire-and-forget for speed)
         const evoServer = updated.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-        const evoKey = updated.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+        const evoKey = updated.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
         const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(data.instanceName)}`;
 
         // Fire-and-forget webhook registration (don't block the response)
@@ -611,7 +611,7 @@ ESSENTIAL RULES:
 
       const config = getEffectiveConfig(instanceName);
       const evoServer = data.serverUrl || config.serverUrl || process.env.EVOLUTION_SERVER || 'https://evolution-api-2gki.srv1722699.hstgr.cloud';
-      const evoKey = data.serverKey || config.serverKey || process.env.EVOLUTION_KEY || '429683C4C977415CAAFCCE10F7D57E11';
+      const evoKey = data.serverKey || config.serverKey || process.env.EVOLUTION_KEY || 'ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3';
       const webhookUrl = data.webhookUrl || `https://wsbot-jade.vercel.app/api/webhook/ai-agent/${encodeURIComponent(instanceName)}`;
 
       try {
