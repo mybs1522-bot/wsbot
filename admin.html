@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BotFlow.ai - Super Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(17, 24, 39, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #25D366;
+      --primary-hover: #20bd5a;
+      --accent-blue: #38bdf8;
+      --accent-purple: #a855f7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Glass Effect */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+    }
+
+    /* Top Navbar */
+    .admin-nav {
+      height: 64px;
+      background: rgba(15, 23, 42, 0.8);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .brand-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; }
+    .brand-badge {
+      font-size: 0.7rem;
+      background: rgba(168, 85, 247, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main Container */
+    .admin-container { max-width: 1300px; width: 100%; margin: 0 auto; padding: 24px; flex: 1; }
+
+    /* Metric Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+    }
+    .stat-val { font-size: 1.8rem; font-weight: 800; margin-top: 4px; }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      width: 320px;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent-blue); }
+
+    /* Table Styles */
+    .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid var(--card-border); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+    th {
+      background: rgba(15, 23, 42, 0.95);
+      padding: 14px 18px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .badge-open { background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .badge-close { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-active { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-paused { background: rgba(148, 163, 184, 0.12); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+    /* Buttons */
+    .btn {
+      background: var(--primary);
+      color: #022c22;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255, 255, 255, 0.06); color: #f8fafc; border: 1px solid var(--card-border); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-sm { padding: 5px 10px; font-size: 0.74rem; border-radius: 6px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-card {
+      max-width: 650px;
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    /* Auth Wrapper */
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      max-width: 400px;
+      width: 100%;
+      padding: 32px;
+      border-radius: 20px;
+      text-align: center;
+    }
+    .input-field {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      margin-bottom: 14px;
+      outline: none;
+    }
+    .input-field:focus { border-color: var(--primary); }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== ADMIN LOGIN ==================== -->
+  <div id="login-view" class="login-wrapper">
+    <div class="glass-card login-card">
+      <div style="width: 48px; height: 48px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #c084fc; font-size: 1.5rem;">
+        🛡️
+      </div>
+      <h2 style="font-size: 1.3rem; margin-bottom: 6px;">Super Admin Login</h2>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 24px;">BotFlow.ai Central Control Panel</p>
+
+      <form onsubmit="handleAdminLogin(event)">
+        <input type="text" id="admin-user" class="input-field" placeholder="Username (robbin)" required />
+        <input type="password" id="admin-pass" class="input-field" placeholder="Password (Robbin#15)" required />
+
+        <div id="login-err" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.75rem; padding: 8px; border-radius: 8px; margin-bottom: 14px;"></div>
+
+        <button type="submit" id="login-submit-btn" class="btn" style="width: 100%; justify-content: center; padding: 12px;">
+          <span>Log In to Admin Console</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== ADMIN DASHBOARD ==================== -->
+  <div id="dashboard-view" style="display: none; flex-direction: column; min-height: 100vh;">
+    
+    <!-- Navbar -->
+    <nav class="admin-nav">
+      <div class="brand-logo">
+        <span>BotFlow<span style="color: var(--primary)">.ai</span></span>
+        <span class="brand-badge">Super Admin</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 0.78rem; color: #4ade80; display: flex; align-items: center; gap: 6px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span> Supabase Connected
+        </span>
+        <button onclick="handleAdminLogout()" class="btn btn-secondary btn-sm" style="color: #fca5a5;">
+          Log Out
+        </button>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="admin-container">
+      
+      <!-- Metrics -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div>
+            <div class="stat-label">Total Registered Users</div>
+            <div class="stat-val" id="metric-total-users">0</div>
+          </div>
+          <div class="stat-icon" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">👥</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <div class="stat-label">Connected WhatsApp</div>
+            <div class="stat-val" style="color: #4ade80;" id="metric-connected-bots">0</div>
+          </div>
+          <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80;">📱</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <div class="stat-label">Active 24/7 AI Bots</div>
+            <div class="stat-val" style="color: #38bdf8;" id="metric-active-bots">0</div>
+          </div>
+          <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc;">🤖</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <div class="stat-label">Database Sync</div>
+            <div class="stat-val" style="font-size: 1.2rem; color: #4ade80;">Supabase Live</div>
+          </div>
+          <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80;">⚡</div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-bar">
+        <input type="text" id="table-search" class="search-input" placeholder="🔍 Search by business, phone, or instance..." oninput="filterTable()" />
+        
+        <div style="display: flex; gap: 10px;">
+          <button onclick="fetchAdminData()" class="btn btn-secondary btn-sm">
+            <span>🔄 Refresh Data</span>
+          </button>
+          <a href="/" target="_blank" class="btn btn-sm">
+            <span>+ Link New Bot</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Users Table -->
+      <div class="table-wrapper glass-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Business / Client</th>
+              <th>WhatsApp Phone</th>
+              <th>Instance ID</th>
+              <th>WhatsApp Status</th>
+              <th>24/7 Bot AI</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                <div class="spinner" style="margin: 0 auto 12px;"></div>
+                Loading registered users...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==================== USER CONFIG MODAL ==================== -->
+  <div id="config-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 id="modal-title" style="font-size: 1.15rem;">Bot Knowledge & FAQs</h3>
+        <button onclick="closeModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Instance ID</span>
+        <div id="modal-instance-id" style="font-size: 0.85rem; color: var(--accent-blue); font-weight: 600; margin-top: 2px;"></div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">WhatsApp Number</span>
+        <div id="modal-phone" style="font-size: 0.85rem; font-weight: 600; margin-top: 2px;"></div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Business FAQs & Hours Prompt</span>
+        <pre id="modal-faqs" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px; font-size: 0.8rem; color: #cbd5e1; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 4px; font-family: monospace;"></pre>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Media Attachments</span>
+        <div id="modal-media" style="margin-top: 4px; font-size: 0.8rem;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="closeModal()" class="btn btn-secondary btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allUsersData = [];
+
+    // Session Verification
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = sessionStorage.getItem('botflow_admin_token');
+      if (token) {
+        showDashboard();
+      } else {
+        document.getElementById('login-view').style.display = 'flex';
+        document.getElementById('dashboard-view').style.display = 'none';
+      }
+    });
+
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('admin-user').value.trim();
+      const password = document.getElementById('admin-pass').value.trim();
+      const errDiv = document.getElementById('login-err');
+      const btn = document.getElementById('login-submit-btn');
+      errDiv.style.display = 'none';
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner" style="margin: 0 auto;"></div>`;
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.success && data.token) {
+          sessionStorage.setItem('botflow_admin_token', data.token);
+          showDashboard();
+        } else {
+          errDiv.innerText = data.error || "Invalid username or password";
+          errDiv.style.display = 'block';
+          btn.disabled = false;
+          btn.innerText = "Log In to Admin Console";
+        }
+      } catch (err) {
+        errDiv.innerText = "Error: " + err.message;
+        errDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = "Log In to Admin Console";
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById('login-view').style.display = 'none';
+      const dash = document.getElementById('dashboard-view');
+      dash.style.display = 'flex';
+      fetchAdminData();
+    }
+
+    function handleAdminLogout() {
+      sessionStorage.removeItem('botflow_admin_token');
+      window.location.reload();
+    }
+
+    async function fetchAdminData() {
+      const token = sessionStorage.getItem('botflow_admin_token');
+      if (!token) return;
+
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 32px;"><div class="spinner" style="margin: 0 auto 12px;"></div>Loading data from Supabase & Evolution API...</td></tr>`;
+
+      try {
+        const res = await fetch(`/api/admin/users?token=${encodeURIComponent(token)}`);
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.users)) {
+          allUsersData = data.users;
+          renderTable(allUsersData);
+          updateMetrics(allUsersData);
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #f87171; padding: 24px;">Failed to load users: ${data.error || 'Unknown error'}</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #f87171; padding: 24px;">Connection error: ${err.message}</td></tr>`;
+      }
+    }
+
+    function updateMetrics(users) {
+      document.getElementById('metric-total-users').innerText = users.length;
+      const connectedCount = users.filter(u => u.connectionStatus === 'open').length;
+      document.getElementById('metric-connected-bots').innerText = connectedCount;
+      const activeCount = users.filter(u => u.enabled !== false).length;
+      document.getElementById('metric-active-bots').innerText = activeCount;
+    }
+
+    function renderTable(users) {
+      const tbody = document.getElementById('users-table-body');
+      if (!users || users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);">No registered users found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = users.map((u, idx) => {
+        const isOpen = u.connectionStatus === 'open';
+        const isBotActive = u.enabled !== false;
+        const phone = u.phone ? u.phone.replace(/\D/g, '') : '';
+        const waLink = phone ? `https://wa.me/${phone}` : '#';
+
+        return `
+          <tr>
+            <td>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(37,211,102,0.12); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #25D366;">
+                  ${(u.businessName || u.instanceName || 'B').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style="font-weight: 700; color: #fff;">${escapeHtml(u.businessName || 'Business')}</div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(u.email || u.source || 'Registered User')}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              ${phone ? `<a href="${waLink}" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 600;">+${phone} ↗</a>` : '<span style="color: var(--text-muted);">-</span>'}
+            </td>
+            <td>
+              <span style="font-family: monospace; font-size: 0.78rem; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--card-border);">
+                ${escapeHtml(u.instanceName)}
+              </span>
+            </td>
+            <td>
+              <span class="badge ${isOpen ? 'badge-open' : 'badge-close'}">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${isOpen ? '#22c55e' : '#ef4444'};"></span>
+                ${isOpen ? 'Connected' : 'Disconnected'}
+              </span>
+            </td>
+            <td>
+              <span class="badge ${isBotActive ? 'badge-active' : 'badge-paused'}">
+                ${isBotActive ? '🟢 Active 24/7' : '⚪ Paused'}
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                <button onclick="viewUserModal(${idx})" class="btn btn-secondary btn-sm" title="View FAQs & Media">
+                  🔍 View
+                </button>
+                <button onclick="toggleUserBot('${escapeHtml(u.instanceName)}', ${!isBotActive})" class="btn btn-sm ${isBotActive ? 'btn-secondary' : ''}" style="${isBotActive ? 'color: #f87171;' : ''}">
+                  ${isBotActive ? 'Pause' : 'Activate'}
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterTable() {
+      const q = document.getElementById('table-search').value.toLowerCase().trim();
+      if (!q) {
+        renderTable(allUsersData);
+        return;
+      }
+      const filtered = allUsersData.filter(u => 
+        (u.businessName || '').toLowerCase().includes(q) ||
+        (u.phone || '').includes(q) ||
+        (u.instanceName || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      );
+      renderTable(filtered);
+    }
+
+    function viewUserModal(idx) {
+      const u = allUsersData[idx];
+      if (!u) return;
+
+      document.getElementById('modal-title').innerText = `${u.businessName || 'User'} - Bot Configuration`;
+      document.getElementById('modal-instance-id').innerText = u.instanceName;
+      document.getElementById('modal-phone').innerText = u.phone ? `+${u.phone}` : 'No phone linked';
+      document.getElementById('modal-faqs').innerText = u.faqs || '(No custom FAQs set - Using default knowledge)';
+
+      const mediaDiv = document.getElementById('modal-media');
+      const items = [];
+      if (u.catalogMediaUrl) items.push(`<div><b>Catalog:</b> <a href="${u.catalogMediaUrl}" target="_blank" style="color: #38bdf8;">${u.catalogMediaUrl}</a></div>`);
+      if (u.locationMediaUrl) items.push(`<div><b>Location/Map:</b> <a href="${u.locationMediaUrl}" target="_blank" style="color: #38bdf8;">${u.locationMediaUrl}</a></div>`);
+      if (u.welcomeMediaUrl) items.push(`<div><b>Welcome Banner:</b> <a href="${u.welcomeMediaUrl}" target="_blank" style="color: #38bdf8;">${u.welcomeMediaUrl}</a></div>`);
+
+      mediaDiv.innerHTML = items.length > 0 ? items.join('') : '<span style="color: var(--text-muted);">No media attachments configured.</span>';
+
+      document.getElementById('config-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('config-modal').style.display = 'none';
+    }
+
+    async function toggleUserBot(instanceName, newStatus) {
+      const token = sessionStorage.getItem('botflow_admin_token');
+      try {
+        const res = await fetch(`/api/admin/toggle-bot?token=${encodeURIComponent(token)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instanceName, enabled: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchAdminData();
+        }
+      } catch (err) {
+        alert("Failed to toggle bot: " + err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

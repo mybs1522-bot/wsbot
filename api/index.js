@@ -2,6 +2,99 @@ import https from 'https';
 import http from 'http';
 import { URL, URLSearchParams } from 'url';
 
+// Supabase Database Integration (Postgres Persistence)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gxwxnygvrgwbshhddltc.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4d3hueWd2cmd3YnNoaGRkbHRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTMwNDQsImV4cCI6MjEwNDA4OTA0NH0.AaidTZdD995SAtS0QbnRh2F3IE-5Xz9U94arPyePPoo';
+
+async function syncToSupabase(userData) {
+  if (!userData || !userData.instanceName) return;
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/+$/, '');
+    const urlObj = new URL(cleanUrl + '/rest/v1/registered_users');
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    const payload = JSON.stringify({
+      instance_name: userData.instanceName,
+      business_name: userData.businessName || '',
+      phone: userData.phone || '',
+      email: userData.email || '',
+      faqs: userData.faqs || '',
+      location_media_url: userData.locationMediaUrl || '',
+      catalog_media_url: userData.catalogMediaUrl || '',
+      welcome_media_url: userData.welcomeMediaUrl || '',
+      enabled: userData.enabled !== false,
+      updated_at: new Date().toISOString()
+    });
+
+    return new Promise((resolve) => {
+      const req = client.request({
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => resolve({ status: res.statusCode, data: d }));
+      });
+      req.on('error', e => resolve({ error: e.message }));
+      req.write(payload);
+      req.end();
+    });
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function getSupabaseUsers() {
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/+$/, '');
+    const urlObj = new URL(cleanUrl + '/rest/v1/registered_users?select=*&order=updated_at.desc');
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    return new Promise((resolve) => {
+      const req = client.request({
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => {
+          try {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(JSON.parse(d));
+            } else {
+              resolve([]);
+            }
+          } catch(e) { resolve([]); }
+        });
+      });
+      req.on('error', () => resolve([]));
+      req.end();
+    });
+  } catch(e) {
+    return [];
+  }
+}
+
 // Dynamic Environment Variable Resolvers for Evolution API
 function getEvolutionServer(override) {
   const envVal = process.env.EVOLUTION_SERVER || process.env.EVOLUTION_URL || process.env.EVOLUTION_API_URL;
@@ -590,7 +683,7 @@ ESSENTIAL RULES:
     }
 
     // 3. Save / Toggle Bot Configuration: POST /api/bot-config
-    // Also auto-re-registers webhook on Evolution API to ensure durability
+    // Also auto-re-registers webhook on Evolution API to ensure durability and syncs to Supabase
     if (action === 'bot-config' && req.method === 'POST') {
       const data = await getBody(req);
       if (data.instanceName) {
@@ -598,6 +691,9 @@ ESSENTIAL RULES:
         const updated = { ...existing, ...data };
         memoryConfigs[data.instanceName] = updated;
         persistentInstanceRegistry[data.instanceName] = updated;
+
+        // Auto-sync user & bot config to Supabase Postgres database (fire-and-forget)
+        syncToSupabase(updated).catch(e => console.warn('[Supabase Sync Error]:', e.message));
 
         // Auto-register webhook on Evolution API (fire-and-forget for speed)
         const evoServer = getEvolutionServer(updated.serverUrl);
@@ -658,6 +754,130 @@ ESSENTIAL RULES:
       } catch (e) {
         return sendJson(res, 500, { error: e.message });
       }
+    }
+
+    // ==================== ADMIN API ROUTES ====================
+
+    // Admin Login: POST /api/admin/login
+    if ((action === 'admin-login' || rawUrl.includes('/api/admin/login')) && req.method === 'POST') {
+      const { username, password } = await getBody(req);
+      if (username === 'robbin' && password === 'Robbin#15') {
+        return sendJson(res, 200, {
+          success: true,
+          token: 'robbin_admin_session_auth_2026',
+          user: { username: 'robbin', role: 'Super Admin' }
+        });
+      }
+      return sendJson(res, 401, { error: 'Invalid username or password' });
+    }
+
+    // Admin Get All Users: GET /api/admin/users
+    if (action === 'admin-users' || rawUrl.includes('/api/admin/users')) {
+      const authHeader = req.headers['authorization'] || '';
+      const queryToken = parsedUrl.searchParams.get('token') || '';
+      const isAuthed = authHeader.includes('robbin_admin_session_auth_2026') || queryToken === 'robbin_admin_session_auth_2026';
+
+      if (!isAuthed) {
+        return sendJson(res, 401, { error: 'Unauthorized: Admin authentication required' });
+      }
+
+      // 1. Fetch Supabase registered users
+      const dbUsers = await getSupabaseUsers();
+
+      // 2. Fetch Evolution API live instances
+      const evoServer = getEvolutionServer();
+      const evoKey = getEvolutionKey();
+      const evoRes = await forwardToEvolution(evoServer, evoKey, 'GET', '/instance/fetchInstances');
+      const evoInstances = Array.isArray(evoRes.data) ? evoRes.data : [];
+
+      // 3. Merge data from Supabase, Evolution API, and persistent registry
+      const userMap = {};
+
+      // Seed with persistent registry
+      for (const [k, v] of Object.entries(persistentInstanceRegistry)) {
+        userMap[k] = {
+          instanceName: k,
+          businessName: v.businessName || 'Avadaspace Design LLC',
+          phone: '919198747810',
+          email: 'contact@avadaspace.com',
+          faqs: v.faqs || '',
+          locationMediaUrl: v.locationMediaUrl || '',
+          catalogMediaUrl: v.catalogMediaUrl || '',
+          welcomeMediaUrl: v.welcomeMediaUrl || '',
+          enabled: v.enabled !== false,
+          connectionStatus: 'open',
+          source: 'Persistent Registry',
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      // Merge Supabase DB entries
+      for (const row of dbUsers) {
+        const id = row.instance_name;
+        if (id) {
+          userMap[id] = {
+            ...(userMap[id] || {}),
+            instanceName: id,
+            businessName: row.business_name || userMap[id]?.businessName || 'Business',
+            phone: row.phone || userMap[id]?.phone || '',
+            email: row.email || userMap[id]?.email || '',
+            faqs: row.faqs || userMap[id]?.faqs || '',
+            locationMediaUrl: row.location_media_url || userMap[id]?.locationMediaUrl || '',
+            catalogMediaUrl: row.catalog_media_url || userMap[id]?.catalogMediaUrl || '',
+            welcomeMediaUrl: row.welcome_media_url || userMap[id]?.welcomeMediaUrl || '',
+            enabled: row.enabled !== false,
+            source: 'Supabase DB',
+            updatedAt: row.updated_at || userMap[id]?.updatedAt
+          };
+        }
+      }
+
+      // Merge Evolution API live statuses
+      for (const inst of evoInstances) {
+        const instName = inst.name || inst.instance?.instanceName;
+        if (instName) {
+          const rawStatus = inst.connectionStatus || inst.state || inst.instance?.state || inst.status || 'unknown';
+          const instPhone = inst.number || (inst.ownerJid || '').replace(/\D/g, '');
+          const profile = inst.profileName || inst.name;
+
+          userMap[instName] = {
+            ...(userMap[instName] || {
+              instanceName: instName,
+              businessName: profile || 'WhatsApp User',
+              email: '',
+              faqs: memoryConfigs[instName]?.faqs || '- Professional Business Assistance',
+              enabled: memoryConfigs[instName]?.enabled !== false
+            }),
+            phone: instPhone || userMap[instName]?.phone || '',
+            profileName: profile,
+            connectionStatus: rawStatus === 'open' ? 'open' : rawStatus,
+            profilePicUrl: inst.profilePicUrl || null,
+            createdAt: inst.createdAt || null
+          };
+        }
+      }
+
+      const allUsers = Object.values(userMap);
+      return sendJson(res, 200, {
+        success: true,
+        count: allUsers.length,
+        users: allUsers,
+        server: evoServer
+      });
+    }
+
+    // Admin Toggle Bot Status: POST /api/admin/toggle-bot
+    if ((action === 'admin-toggle-bot' || rawUrl.includes('/api/admin/toggle-bot')) && req.method === 'POST') {
+      const { instanceName, enabled } = await getBody(req);
+      if (instanceName) {
+        const cfg = getEffectiveConfig(instanceName);
+        cfg.enabled = !!enabled;
+        memoryConfigs[instanceName] = cfg;
+        persistentInstanceRegistry[instanceName] = cfg;
+        syncToSupabase(cfg).catch(() => {});
+        return sendJson(res, 200, { success: true, instanceName, enabled: cfg.enabled });
+      }
+      return sendJson(res, 400, { error: 'instanceName required' });
     }
 
     // 5. Test Chat with Multi-Turn History: POST /api/test-chat
