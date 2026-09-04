@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/admin", "destination": "/api/index.js?action=admin-page" },
-    { "source": "/admin.html", "destination": "/api/index.js?action=admin-page" },
-    { "source": "/api/evo/(.*)", "destination": "/api/index.js?action=evo&path=/$1" },
-    { "source": "/api/webhook/ai-agent/(.*)", "destination": "/api/index.js?action=webhook&instance=$1" },
-    { "source": "/api/ensure-webhook", "destination": "/api/index.js?action=ensure-webhook" },
-    { "source": "/api/admin/(.*)", "destination": "/api/index.js?action=admin-$1" },
-    { "source": "/api/(.*)", "destination": "/api/index.js?action=$1" },
-    { "source": "/", "destination": "/connect.html" },
-    { "source": "/(.*)", "destination": "/$1" }
+  "routes": [
+    { "src": "/admin", "dest": "/api/index.js?action=admin-page" },
+    { "src": "/admin.html", "dest": "/api/index.js?action=admin-page" },
+    { "src": "/api/evo/(.*)", "dest": "/api/index.js?action=evo&path=/$1" },
+    { "src": "/api/webhook/ai-agent/(.*)", "dest": "/api/index.js?action=webhook&instance=$1" },
+    { "src": "/api/ensure-webhook", "dest": "/api/index.js?action=ensure-webhook" },
+    { "src": "/api/admin/(.*)", "dest": "/api/index.js?action=admin-$1" },
+    { "src": "/api/(.*)", "dest": "/api/index.js?action=$1" },
+    { "src": "/", "dest": "/connect.html" },
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
