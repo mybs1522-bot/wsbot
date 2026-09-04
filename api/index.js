@@ -26,6 +26,8 @@ async function syncToSupabase(userData) {
       catalog_media_url: userData.catalogMediaUrl || '',
       welcome_media_url: userData.welcomeMediaUrl || '',
       enabled: userData.enabled !== false,
+      plan: userData.plan || 'trial',
+      allowed_test_phone: userData.allowedTestPhone || userData.phone || '',
       updated_at: new Date().toISOString()
     });
 
@@ -224,7 +226,10 @@ const persistentInstanceRegistry = {
     welcomeMediaUrl: '',
     serverUrl: getEvolutionServer(),
     serverKey: getEvolutionKey(),
-    enabled: true
+    enabled: true,
+    plan: 'pro',
+    phone: '919198747810',
+    allowedTestPhone: '919198747810'
   }
 };
 
@@ -256,7 +261,10 @@ function getEffectiveConfig(instanceName) {
     welcomeMediaUrl: '',
     serverUrl: getEvolutionServer(),
     serverKey: getEvolutionKey(),
-    enabled: true // Always active by default
+    enabled: true, // Always active by default
+    plan: 'trial', // Default SaaS trial mode
+    phone: '',
+    allowedTestPhone: ''
   };
 
   memoryConfigs[cleanId] = autoConfig;
@@ -706,6 +714,34 @@ export default async function handler(req, res) {
             }
 
             const businessName = botConfig.businessName || 'Our Business';
+
+            // ==================== SAAS TRIAL MODE RESTRICTION GUARD ====================
+            // Trial users can only test with their own registered/submitted WhatsApp phone number
+            const userPlan = botConfig.plan || 'trial';
+            const ownerPhone = (botConfig.phone || '').replace(/\D/g, '');
+            const allowedTestPhone = (botConfig.allowedTestPhone || '').replace(/\D/g, '');
+
+            const isAuthorizedTester = userPlan === 'pro' || userPlan === 'active' || (
+              (!ownerPhone && !allowedTestPhone) ||
+              (ownerPhone && (senderPhone === ownerPhone || senderPhone.endsWith(ownerPhone) || ownerPhone.endsWith(senderPhone))) ||
+              (allowedTestPhone && (senderPhone === allowedTestPhone || senderPhone.endsWith(allowedTestPhone) || allowedTestPhone.endsWith(senderPhone)))
+            );
+
+            if (!isAuthorizedTester) {
+              console.log(`[Trial Guard] [${instanceName}] Blocked message from external user ${senderPhone} (Trial plan restricted to owner: ${ownerPhone || allowedTestPhone})`);
+              
+              const trialNotice = `👋 *${businessName} — BotFlow AI Notice*\n\nThis WhatsApp AI assistant is currently in *Private Trial Testing Mode* authorized only for the account owner.\n\nTo unlock 24/7 public customer responses for all incoming numbers, please upgrade to a full plan at your BotFlow dashboard.`;
+              
+              const evoServer = getEvolutionServer(botConfig.serverUrl);
+              const evoKey = getEvolutionKey(req.headers['apikey'] || botConfig.serverKey);
+              
+              forwardToEvolution(evoServer, evoKey, 'POST', `/message/sendText/${encodeURIComponent(instanceName)}`, {
+                number: senderPhone,
+                text: trialNotice
+              }).catch(e => console.warn('[Trial Notice Error]:', e.message));
+
+              return sendJson(res, 200, { status: 'trial_restricted', message: 'Sender not authorized in trial mode' });
+            }
 
             // Retrieve customer chat history for multi-turn memory
             const history = getCustomerHistory(instanceName, senderPhone);

@@ -522,11 +522,10 @@
   <div class="auth-wrapper" id="auth-section">
     <div class="card">
       
-      <!-- Auth Mode Switcher -->
+      <!-- Auth Mode Switcher (Link Bot or Email OTP) -->
       <div style="display: flex; background: rgba(15, 23, 42, 0.6); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--card-border); gap: 4px;">
-        <button type="button" id="auth-tab-create" onclick="switchAuthMode('create')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: var(--whatsapp-color); color: #022c22;">✨ Link Bot</button>
-        <button type="button" id="auth-tab-email" onclick="switchAuthMode('email')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">📧 Email OTP</button>
-        <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">📱 Phone</button>
+        <button type="button" id="auth-tab-create" onclick="switchAuthMode('create')" style="flex: 1; padding: 10px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: var(--whatsapp-color); color: #022c22;">✨ Link New Bot</button>
+        <button type="button" id="auth-tab-email" onclick="switchAuthMode('email')" style="flex: 1; padding: 10px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">📧 Email OTP Login</button>
       </div>
 
       <!-- Step 1: Signup / Create New Bot -->
@@ -555,7 +554,7 @@
           </div>
 
           <div class="input-group" id="phone-field-group">
-            <label>WhatsApp Phone Number</label>
+            <label>WhatsApp Phone Number (For Pairing Code & Trial Tester)</label>
             <input type="tel" id="phone-input" class="input-field" placeholder="e.g. 919811343771 (with country code)" required />
             <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Include country code without '+' or spaces</span>
           </div>
@@ -567,7 +566,7 @@
         </form>
 
         <div style="margin-top: 14px; text-align: center;">
-          <span style="font-size: 0.78rem; color: #64748b;">Already have an account? </span>
+          <span style="font-size: 0.78rem; color: #64748b;">Already registered? </span>
           <button type="button" onclick="switchAuthMode('email')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Log In with Email OTP ➔</button>
         </div>
       </div>
@@ -623,38 +622,8 @@
         </div>
 
         <div style="margin-top: 16px; text-align: center;">
-          <span style="font-size: 0.78rem; color: #64748b;">Prefer phone login? </span>
-          <button type="button" onclick="switchAuthMode('login')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Phone Login ➔</button>
-        </div>
-      </div>
-
-      <!-- Quick Login View for Already Connected Numbers -->
-      <div id="login-view" style="display: none;">
-        <div class="icon-badge" style="background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3);">
-          <svg style="color: #38bdf8; width: 26px; height: 26px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-        </div>
-
-        <h1>Login to Your Bot</h1>
-        <p class="subtitle">Enter your connected WhatsApp phone number to access your dashboard.</p>
-
-        <form id="login-form" onsubmit="handleLoginSubmit(event)">
-          <div class="input-group">
-            <label>Connected WhatsApp Phone Number</label>
-            <input type="tel" id="login-phone-input" class="input-field" placeholder="e.g. 919198747810 or 919315472632" required />
-            <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Enter your WhatsApp number (with country code)</span>
-          </div>
-
-          <div id="login-error-msg" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.76rem; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; text-align: left;"></div>
-
-          <button type="submit" id="login-btn" class="btn">
-            <span>Log In to Dashboard</span>
-            <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-          </button>
-        </form>
-
-        <div style="margin-top: 14px; text-align: center;">
-          <span style="font-size: 0.78rem; color: #64748b;">Need to link a new WhatsApp number? </span>
-          <button type="button" onclick="switchAuthMode('create')" style="background: transparent; border: none; color: #22c55e; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Link New Device ➔</button>
+          <span style="font-size: 0.78rem; color: #64748b;">Need a new account? </span>
+          <button type="button" onclick="switchAuthMode('create')" style="background: transparent; border: none; color: #22c55e; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Link New Bot ➔</button>
         </div>
       </div>
 
@@ -731,6 +700,11 @@
       </div>
 
       <div class="dash-user-controls">
+        <button id="dash-plan-btn" onclick="openUpgradeModal()" style="display: flex; align-items: center; gap: 6px; background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.35); color: #fde047; padding: 6px 14px; border-radius: 9999px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+          <span id="nav-plan-text">⚡ Free Trial</span>
+          <span id="nav-plan-tag" style="background: #eab308; color: #422006; font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; font-weight: 800;">1 Tester</span>
+        </button>
+
         <div id="dash-status-badge" class="status-badge status-checking">
           <div class="dot-live dot-pulse"></div>
           <span id="dash-status-text">Checking WhatsApp connection...</span>
@@ -777,6 +751,29 @@
                     <span id="bot-toggle-knob" style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px);"></span>
                   </span>
                 </label>
+              </div>
+            </div>
+
+            <!-- Trial Mode / Plan Banner Box -->
+            <div id="trial-plan-box" style="margin-bottom: 16px; padding: 14px 16px; border-radius: 14px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); text-align: left;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1.1rem;" id="plan-icon">🔒</span>
+                  <div>
+                    <div style="font-weight: 800; font-size: 0.85rem; color: #fde047;" id="plan-status-heading">Free Trial (Single-Tester Mode)</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8;" id="plan-status-desc">Only your submitted WhatsApp number can test the bot. Outside customer messages are restricted.</div>
+                  </div>
+                </div>
+                <button type="button" onclick="openUpgradeModal()" class="btn" style="width: auto; padding: 7px 14px; font-size: 0.76rem; margin: 0; background: #22c55e; color: #022c22; font-weight: 800; box-shadow: 0 2px 10px rgba(34,197,94,0.3);" id="plan-upgrade-btn">
+                  🔓 Activate Full Access
+                </button>
+              </div>
+
+              <!-- Single Authorized Tester Phone Config -->
+              <div id="trial-tester-phone-group" style="display: flex; align-items: center; gap: 10px; background: #0b1120; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border);">
+                <label style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600; white-space: nowrap;">Authorized Test WhatsApp #:</label>
+                <input type="tel" id="cfg-tester-phone" class="input-field" placeholder="e.g. 919811343771" oninput="triggerAutoSave()" style="padding: 4px 8px; font-size: 0.78rem; background: #1e293b; border-radius: 6px; flex: 1;" />
+                <span style="font-size: 0.68rem; color: #64748b;">(With country code)</span>
               </div>
             </div>
 
@@ -1466,11 +1463,79 @@ How can we help you today? You can ask about:
         if (cfg.catalogMediaUrl && document.getElementById('cfg-catalog-media')) document.getElementById('cfg-catalog-media').value = cfg.catalogMediaUrl;
         if (cfg.welcomeMediaUrl && document.getElementById('cfg-welcome-media')) document.getElementById('cfg-welcome-media').value = cfg.welcomeMediaUrl;
         if (cfg.locationMediaUrl && document.getElementById('cfg-location-media')) document.getElementById('cfg-location-media').value = cfg.locationMediaUrl;
+        if (document.getElementById('cfg-tester-phone')) {
+          document.getElementById('cfg-tester-phone').value = cfg.allowedTestPhone || session.phone || '';
+        }
+
+        updatePlanUI(cfg.plan || 'trial', cfg.allowedTestPhone || session.phone || '');
       } catch (e) {}
 
       clearInterval(dashboardPoll);
       await monitorLive();
       dashboardPoll = setInterval(monitorLive, 3000);
+    }
+
+    function updatePlanUI(plan, testPhone) {
+      const isPro = plan === 'pro' || plan === 'active';
+      const navText = document.getElementById('nav-plan-text');
+      const navTag = document.getElementById('nav-plan-tag');
+      const planBtn = document.getElementById('dash-plan-btn');
+      const planBox = document.getElementById('trial-plan-box');
+      const planIcon = document.getElementById('plan-icon');
+      const planHeading = document.getElementById('plan-status-heading');
+      const planDesc = document.getElementById('plan-status-desc');
+      const upgradeBtn = document.getElementById('plan-upgrade-btn');
+      const testerPhoneGroup = document.getElementById('trial-tester-phone-group');
+
+      if (isPro) {
+        if (navText) navText.innerText = '👑 Pro Plan';
+        if (navTag) {
+          navTag.innerText = 'Unlimited';
+          navTag.style.background = '#22c55e';
+          navTag.style.color = '#022c22';
+        }
+        if (planBtn) {
+          planBtn.style.background = 'rgba(34, 197, 94, 0.15)';
+          planBtn.style.borderColor = 'rgba(34, 197, 94, 0.35)';
+          planBtn.style.color = '#4ade80';
+        }
+        if (planBox) {
+          planBox.style.background = 'rgba(34, 197, 94, 0.08)';
+          planBox.style.borderColor = 'rgba(34, 197, 94, 0.25)';
+        }
+        if (planIcon) planIcon.innerText = '👑';
+        if (planHeading) {
+          planHeading.innerText = 'Active Pro Plan (24/7 Unlimited Public Access)';
+          planHeading.style.color = '#4ade80';
+        }
+        if (planDesc) planDesc.innerText = 'Your AI bot automatically responds 24/7 to all customers on WhatsApp with anti-ban human typing delays.';
+        if (upgradeBtn) upgradeBtn.style.display = 'none';
+        if (testerPhoneGroup) testerPhoneGroup.style.display = 'none';
+      } else {
+        if (navText) navText.innerText = '⚡ Free Trial';
+        if (navTag) {
+          navTag.innerText = '1 Tester';
+          navTag.style.background = '#eab308';
+          navTag.style.color = '#422006';
+        }
+        if (planBtn) {
+          planBtn.style.background = 'rgba(234, 179, 8, 0.15)';
+          planBtn.style.borderColor = 'rgba(234, 179, 8, 0.35)';
+          planBtn.style.color = '#fde047';
+        }
+        if (planBox) {
+          planBox.style.background = 'rgba(234, 179, 8, 0.08)';
+          planBox.style.borderColor = 'rgba(234, 179, 8, 0.25)';
+        }
+        if (planIcon) planIcon.innerText = '🔒';
+        if (planHeading) {
+          planHeading.innerText = 'Free Trial (Single-Tester Mode)';
+          planHeading.style.color = '#fde047';
+        }
+        if (planDesc) planDesc.innerText = `Only your authorized test WhatsApp number (${testPhone || 'configured below'}) can chat with the bot. Outside numbers are restricted.`;
+        if (upgradeBtn) upgradeBtn.style.display = 'inline-block';
+        if (testerPhoneGroup) testerPhoneGroup.style.display = 'flex';
+      }
     }
 
     // Ensure webhook is registered on Evolution API (called on every page load)
@@ -1553,12 +1618,13 @@ How can we help you today? You can ask about:
       const catalogMediaUrl = document.getElementById('cfg-catalog-media')?.value.trim() || '';
       const welcomeMediaUrl = document.getElementById('cfg-welcome-media')?.value.trim() || '';
       const locationMediaUrl = document.getElementById('cfg-location-media')?.value.trim() || '';
+      const allowedTestPhone = document.getElementById('cfg-tester-phone')?.value.trim() || session.phone || '';
       const isEnabled = explicitEnabled !== null ? explicitEnabled : document.getElementById('bot-active-toggle').checked;
 
       // Save to localStorage
       try {
         localStorage.setItem('botflow_customizer_config', JSON.stringify({
-          businessName, geminiKey, faqs, catalogMediaUrl, welcomeMediaUrl, locationMediaUrl, enabled: isEnabled
+          businessName, geminiKey, faqs, catalogMediaUrl, welcomeMediaUrl, locationMediaUrl, allowedTestPhone, enabled: isEnabled
         }));
       } catch (e) {}
 
@@ -1574,6 +1640,8 @@ How can we help you today? You can ask about:
             catalogMediaUrl,
             welcomeMediaUrl,
             locationMediaUrl,
+            allowedTestPhone,
+            phone: session.phone || allowedTestPhone,
             serverUrl: server,
             serverKey: key,
             enabled: isEnabled
@@ -1604,12 +1672,13 @@ How can we help you today? You can ask about:
       const catalogMediaUrl = document.getElementById('cfg-catalog-media')?.value.trim() || '';
       const welcomeMediaUrl = document.getElementById('cfg-welcome-media')?.value.trim() || '';
       const locationMediaUrl = document.getElementById('cfg-location-media')?.value.trim() || '';
+      const allowedTestPhone = document.getElementById('cfg-tester-phone')?.value.trim() || session.phone || '';
       const btn = document.getElementById('save-cfg-btn');
 
       // Save to localStorage
       try {
         localStorage.setItem('botflow_customizer_config', JSON.stringify({
-          businessName, geminiKey, faqs, catalogMediaUrl, welcomeMediaUrl, locationMediaUrl
+          businessName, geminiKey, faqs, catalogMediaUrl, welcomeMediaUrl, locationMediaUrl, allowedTestPhone
         }));
       } catch (e) {}
 
@@ -1628,6 +1697,8 @@ How can we help you today? You can ask about:
             catalogMediaUrl,
             welcomeMediaUrl,
             locationMediaUrl,
+            allowedTestPhone,
+            phone: session.phone || allowedTestPhone,
             serverUrl: server,
             serverKey: key,
             enabled: true
@@ -1808,6 +1879,77 @@ How can we help you today? You can ask about:
         document.getElementById('connect-view').style.display = 'none';
       }
     }
+
+    function openUpgradeModal() {
+      const modal = document.getElementById('upgrade-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeUpgradeModal() {
+      const modal = document.getElementById('upgrade-modal');
+      if (modal) modal.style.display = 'none';
+    }
   </script>
+
+  <!-- ==================== UPGRADE PLAN MODAL ==================== -->
+  <div id="upgrade-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; max-width: 680px; width: 100%; padding: 32px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); position: relative; text-align: left; max-height: 90vh; overflow-y: auto;">
+      
+      <!-- Close Button -->
+      <button onclick="closeUpgradeModal()" style="position: absolute; top: 20px; right: 20px; background: #1e293b; border: 1px solid var(--card-border); color: #94a3b8; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-flex; padding: 6px 14px; border-radius: 9999px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; font-size: 0.78rem; font-weight: 700; margin-bottom: 10px;">
+          🚀 Unlock Full 24/7 WhatsApp AI Power
+        </div>
+        <h2 style="font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 6px;">Activate Unlimited Public Access</h2>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">Switch from Single-Tester Trial to Full 24/7 Public Customer Responses.</p>
+      </div>
+
+      <!-- Pricing Plans Comparison Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+        
+        <!-- Trial Card (Current) -->
+        <div style="background: #1e293b; border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; position: relative;">
+          <div style="font-size: 0.76rem; font-weight: 700; color: #fde047; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Current Status</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px;">Free Trial</h3>
+          <div style="font-size: 1.4rem; font-weight: 800; color: white; margin-bottom: 12px;">$0 <span style="font-size: 0.75rem; color: #64748b; font-weight: 400;">/ forever</span></div>
+          
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.78rem; color: #94a3b8; display: flex; flex-direction: column; gap: 8px;">
+            <li>✓ 1 WhatsApp Connected Device</li>
+            <li>✓ <b>1 Authorized Tester Number</b></li>
+            <li>⚠️ Restricted to Owner testing only</li>
+            <li>⚠️ Outside customers blocked</li>
+          </ul>
+        </div>
+
+        <!-- Pro Plan (Recommended) -->
+        <div style="background: linear-gradient(180deg, rgba(34,197,94,0.12) 0%, rgba(15,23,42,0.9) 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 20px; position: relative;">
+          <div style="position: absolute; top: -10px; right: 14px; background: #22c55e; color: #022c22; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase;">Most Popular</div>
+          <div style="font-size: 0.76rem; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Full Access</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px;">Pro Unlimited</h3>
+          <div style="font-size: 1.4rem; font-weight: 800; color: white; margin-bottom: 12px;">$29 <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 400;">/ month</span></div>
+
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.78rem; color: #f1f5f9; display: flex; flex-direction: column; gap: 8px;">
+            <li>✅ <b>Unlimited Public Customers 24/7</b></li>
+            <li>✅ Human Typing Delays (Anti-Ban Engine)</li>
+            <li>✅ Automatic Reconnection Worker</li>
+            <li>✅ Custom Gemini Prompt & Media URLs</li>
+            <li>✅ Priority Multi-Turn Conversation Memory</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Upgrade Action Button -->
+      <div style="text-align: center;">
+        <button onclick="alert('To activate your Pro Plan immediately, please contact your account manager or complete payment via Stripe at support@botflow.ai.'); closeUpgradeModal();" class="btn" style="background: #22c55e; color: #022c22; font-weight: 800; font-size: 0.95rem; padding: 14px 24px; box-shadow: 0 4px 20px rgba(34,197,94,0.4);">
+          🚀 Upgrade to Pro Plan ($29/mo) ➔
+        </button>
+        <p style="font-size: 0.72rem; color: #64748b; margin-top: 10px; margin-bottom: 0;">Instant activation • 30-day money-back guarantee • Cancel anytime</p>
+      </div>
+
+    </div>
+  </div>
+
 </body>
 </html>
