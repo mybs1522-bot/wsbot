@@ -523,9 +523,10 @@
     <div class="card">
       
       <!-- Auth Mode Switcher -->
-      <div style="display: flex; background: rgba(15, 23, 42, 0.6); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--card-border);">
-        <button type="button" id="auth-tab-create" onclick="switchAuthMode('create')" style="flex: 1; padding: 9px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: var(--whatsapp-color); color: #022c22;">✨ Link New WhatsApp</button>
-        <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" style="flex: 1; padding: 9px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">🔑 Login with Phone</button>
+      <div style="display: flex; background: rgba(15, 23, 42, 0.6); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--card-border); gap: 4px;">
+        <button type="button" id="auth-tab-create" onclick="switchAuthMode('create')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: var(--whatsapp-color); color: #022c22;">✨ Link Bot</button>
+        <button type="button" id="auth-tab-email" onclick="switchAuthMode('email')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">📧 Email OTP</button>
+        <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" style="flex: 1; padding: 9px 6px; font-size: 0.76rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">📱 Phone</button>
       </div>
 
       <!-- Step 1: Signup / Create New Bot -->
@@ -566,8 +567,64 @@
         </form>
 
         <div style="margin-top: 14px; text-align: center;">
-          <span style="font-size: 0.78rem; color: #64748b;">Already connected earlier? </span>
-          <button type="button" onclick="switchAuthMode('login')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Log In with Phone Number ➔</button>
+          <span style="font-size: 0.78rem; color: #64748b;">Already have an account? </span>
+          <button type="button" onclick="switchAuthMode('email')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Log In with Email OTP ➔</button>
+        </div>
+      </div>
+
+      <!-- Step 1B: Email OTP Verification Login (Tenant-Isolated) -->
+      <div id="email-otp-view" style="display: none;">
+        <div class="icon-badge" style="background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3);">
+          <svg style="color: #c084fc; width: 26px; height: 26px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        </div>
+
+        <h1>Login with Email OTP</h1>
+        <p class="subtitle" id="otp-subtitle">We'll send a 6-digit verification code to your email.</p>
+
+        <!-- Phase 1: Request Email -->
+        <div id="otp-step-1">
+          <form onsubmit="handleSendEmailOtp(event)">
+            <div class="input-group">
+              <label>Your Account Email Address</label>
+              <input type="email" id="auth-email-input" class="input-field" placeholder="e.g. bhavesh1522@gmail.com" required />
+            </div>
+
+            <div id="otp-send-err" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.76rem; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; text-align: left;"></div>
+
+            <button type="submit" id="send-otp-btn" class="btn">
+              <span>Send 6-Digit Login Code</span>
+              <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </form>
+        </div>
+
+        <!-- Phase 2: Enter OTP Code -->
+        <div id="otp-step-2" style="display: none;">
+          <form onsubmit="handleVerifyEmailOtp(event)">
+            <div class="input-group">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label>Enter 6-Digit Code</label>
+                <span id="otp-sent-to" style="font-size: 0.72rem; color: #38bdf8; font-weight: 600;"></span>
+              </div>
+              <input type="text" id="auth-code-input" class="input-field" placeholder="123456" maxlength="6" style="letter-spacing: 6px; font-size: 1.2rem; text-align: center; font-weight: 800;" required />
+            </div>
+
+            <div id="otp-verify-err" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.76rem; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; text-align: left;"></div>
+
+            <button type="submit" id="verify-otp-btn" class="btn">
+              <span>Verify & Access Dashboard</span>
+              <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+
+            <div style="margin-top: 12px; text-align: center;">
+              <button type="button" onclick="resetOtpStep()" style="background: transparent; border: none; color: #94a3b8; font-size: 0.74rem; cursor: pointer; text-decoration: underline;">← Change email address</button>
+            </div>
+          </form>
+        </div>
+
+        <div style="margin-top: 16px; text-align: center;">
+          <span style="font-size: 0.78rem; color: #64748b;">Prefer phone login? </span>
+          <button type="button" onclick="switchAuthMode('login')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Phone Login ➔</button>
         </div>
       </div>
 
@@ -930,23 +987,158 @@ How can we help you today? You can ask about:
 
     function switchAuthMode(mode) {
       const isCreate = mode === 'create';
+      const isEmail = mode === 'email';
+      const isLogin = mode === 'login';
+
       document.getElementById('signup-view').style.display = isCreate ? 'block' : 'none';
-      document.getElementById('login-view').style.display = isCreate ? 'none' : 'block';
+      document.getElementById('email-otp-view').style.display = isEmail ? 'block' : 'none';
+      document.getElementById('login-view').style.display = isLogin ? 'block' : 'none';
       document.getElementById('connect-view').style.display = 'none';
 
       const tabCreate = document.getElementById('auth-tab-create');
+      const tabEmail = document.getElementById('auth-tab-email');
       const tabLogin = document.getElementById('auth-tab-login');
 
-      if (isCreate) {
+      // Reset all tabs
+      [tabCreate, tabEmail, tabLogin].forEach(t => {
+        if (t) {
+          t.style.background = 'transparent';
+          t.style.color = '#94a3b8';
+        }
+      });
+
+      if (isCreate && tabCreate) {
         tabCreate.style.background = 'var(--whatsapp-color)';
         tabCreate.style.color = '#022c22';
-        tabLogin.style.background = 'transparent';
-        tabLogin.style.color = '#94a3b8';
-      } else {
+      } else if (isEmail && tabEmail) {
+        tabEmail.style.background = '#c084fc';
+        tabEmail.style.color = '#3b0764';
+      } else if (isLogin && tabLogin) {
         tabLogin.style.background = '#38bdf8';
         tabLogin.style.color = '#082f49';
-        tabCreate.style.background = 'transparent';
-        tabCreate.style.color = '#94a3b8';
+      }
+    }
+
+    function resetOtpStep() {
+      document.getElementById('otp-step-1').style.display = 'block';
+      document.getElementById('otp-step-2').style.display = 'none';
+      const codeInput = document.getElementById('auth-code-input');
+      if (codeInput) codeInput.value = '';
+      const err1 = document.getElementById('otp-send-err');
+      const err2 = document.getElementById('otp-verify-err');
+      if (err1) err1.style.display = 'none';
+      if (err2) err2.style.display = 'none';
+    }
+
+    async function handleSendEmailOtp(e) {
+      e.preventDefault();
+      const emailInput = document.getElementById('auth-email-input');
+      const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+      const btn = document.getElementById('send-otp-btn');
+      const errDiv = document.getElementById('otp-send-err');
+      
+      if (errDiv) errDiv.style.display = 'none';
+      if (!email || !email.includes('@')) {
+        if (errDiv) {
+          errDiv.innerText = 'Please enter a valid email address.';
+          errDiv.style.display = 'block';
+        }
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Sending 6-digit code...`;
+
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById('otp-step-1').style.display = 'none';
+          document.getElementById('otp-step-2').style.display = 'block';
+          const sentToEl = document.getElementById('otp-sent-to');
+          if (sentToEl) sentToEl.innerText = `Sent to ${email}`;
+          setTimeout(() => {
+            const codeInput = document.getElementById('auth-code-input');
+            if (codeInput) codeInput.focus();
+          }, 100);
+        } else {
+          throw new Error(data.error || 'Failed to send OTP. Please check email address.');
+        }
+      } catch (err) {
+        if (errDiv) {
+          errDiv.innerText = err.message;
+          errDiv.style.display = 'block';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Send 6-Digit Login Code</span><svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+      }
+    }
+
+    async function handleVerifyEmailOtp(e) {
+      e.preventDefault();
+      const email = document.getElementById('auth-email-input').value.trim().toLowerCase();
+      const code = document.getElementById('auth-code-input').value.trim();
+      const btn = document.getElementById('verify-otp-btn');
+      const errDiv = document.getElementById('otp-verify-err');
+
+      if (errDiv) errDiv.style.display = 'none';
+      if (!code || code.length < 6) {
+        if (errDiv) {
+          errDiv.innerText = 'Please enter the complete 6-digit verification code from your email.';
+          errDiv.style.display = 'block';
+        }
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Verifying code...`;
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp: code })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const bot = data.matchedBot || {};
+          const session = saveSession({
+            email: data.user.email,
+            userId: data.user.userId,
+            token: data.user.token,
+            instanceName: bot.instance_name || bot.instanceName || '',
+            name: bot.business_name || bot.businessName || data.user.email.split('@')[0],
+            phone: bot.phone || '',
+            webhookUrl: (bot.instance_name || bot.instanceName) ? `${window.location.origin}/api/webhook/ai-agent/${bot.instance_name || bot.instanceName}` : ''
+          });
+
+          if (session.instanceName) {
+            showDashboardApp(session);
+          } else {
+            // New user without linked instance: prefill email and direct them to link their device
+            switchAuthMode('create');
+            const emailInp = document.getElementById('email-input');
+            if (emailInp) emailInp.value = email;
+            alert("Email verified successfully! Please connect your WhatsApp device below to launch your AI bot.");
+          }
+        } else {
+          throw new Error(data.error || 'Invalid or expired code. Please try again.');
+        }
+      } catch (err) {
+        if (errDiv) {
+          errDiv.innerText = err.message;
+          errDiv.style.display = 'block';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Verify & Access Dashboard</span><svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
       }
     }
 

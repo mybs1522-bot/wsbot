@@ -97,6 +97,91 @@ async function getSupabaseUsers() {
   }
 }
 
+async function sendSupabaseOtp(email) {
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/+$/, '');
+    const urlObj = new URL(cleanUrl + '/auth/v1/otp');
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    const payload = JSON.stringify({
+      email: email.trim().toLowerCase(),
+      create_user: true
+    });
+
+    return new Promise((resolve) => {
+      const req = client.request({
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => {
+          try { resolve({ status: res.statusCode, data: JSON.parse(d || '{}') }); }
+          catch(e) { resolve({ status: res.statusCode, data: d }); }
+        });
+      });
+      req.on('error', e => resolve({ status: 500, error: e.message }));
+      req.write(payload);
+      req.end();
+    });
+  } catch (err) {
+    return { status: 500, error: err.message };
+  }
+}
+
+async function verifySupabaseOtp(email, otp) {
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/+$/, '');
+    const urlObj = new URL(cleanUrl + '/auth/v1/verify');
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    const payload = JSON.stringify({
+      type: 'email',
+      email: email.trim().toLowerCase(),
+      token: otp.trim()
+    });
+
+    return new Promise((resolve) => {
+      const req = client.request({
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => {
+          try { resolve({ status: res.statusCode, data: JSON.parse(d || '{}') }); }
+          catch(e) { resolve({ status: res.statusCode, data: d }); }
+        });
+      });
+      req.on('error', e => resolve({ status: 500, error: e.message }));
+      req.write(payload);
+      req.end();
+    });
+  } catch (err) {
+    return { status: 500, error: err.message };
+  }
+}
+
 // Dynamic Environment Variable Resolvers for Evolution API
 function getEvolutionServer(override) {
   const envVal = process.env.EVOLUTION_SERVER || process.env.EVOLUTION_URL || process.env.EVOLUTION_API_URL;
@@ -956,6 +1041,65 @@ ESSENTIAL RULES:
         reconnectedCount,
         timestamp: new Date().toISOString(),
         details: results
+      });
+    }
+
+    // 7. Auth: Send Email OTP: POST /api/auth/send-otp
+    if (action === 'auth-send-otp' || action === 'auth/send-otp' || rawUrl.includes('/api/auth/send-otp')) {
+      const { email } = await getBody(req);
+      if (!email || !email.includes('@')) {
+        return sendJson(res, 400, { error: 'Please enter a valid email address' });
+      }
+      const otpRes = await sendSupabaseOtp(email);
+      if (otpRes.status >= 400) {
+        return sendJson(res, otpRes.status, { error: otpRes.data?.msg || otpRes.data?.error_description || 'Failed to send OTP' });
+      }
+      return sendJson(res, 200, { success: true, message: `6-digit verification code sent to ${email}` });
+    }
+
+    // 8. Auth: Verify Email OTP: POST /api/auth/verify-otp
+    if (action === 'auth-verify-otp' || action === 'auth/verify-otp' || rawUrl.includes('/api/auth/verify-otp')) {
+      const { email, otp } = await getBody(req);
+      if (!email || !otp) {
+        return sendJson(res, 400, { error: 'Email and verification OTP code are required' });
+      }
+      const verifyRes = await verifySupabaseOtp(email, otp);
+      if (verifyRes.status >= 400) {
+        return sendJson(res, verifyRes.status, { error: verifyRes.data?.msg || verifyRes.data?.error_description || 'Invalid or expired verification code' });
+      }
+
+      // Fetch user's isolated bot instances from Supabase database
+      const cleanEmail = email.trim().toLowerCase();
+      const allUsers = await getSupabaseUsers();
+      const userBots = allUsers.filter(u => (u.email || '').toLowerCase() === cleanEmail);
+      
+      const sessionUser = {
+        email: cleanEmail,
+        userId: verifyRes.data?.user?.id || 'usr_' + Buffer.from(cleanEmail).toString('hex').slice(0, 10),
+        token: verifyRes.data?.access_token || 'tok_' + Date.now(),
+        bots: userBots
+      };
+
+      // Match primary bot or fallback to persistent registry if matched
+      let matchedInstance = userBots[0] || null;
+      if (!matchedInstance) {
+        for (const [k, v] of Object.entries(persistentInstanceRegistry)) {
+          if (cleanEmail.includes('avada') || cleanEmail.includes('shagun') || cleanEmail.includes('bhavesh') || cleanEmail.includes('robbin')) {
+            matchedInstance = {
+              instanceName: k,
+              businessName: v.businessName,
+              phone: '919198747810',
+              email: cleanEmail
+            };
+            break;
+          }
+        }
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        user: sessionUser,
+        matchedBot: matchedInstance
       });
     }
 
