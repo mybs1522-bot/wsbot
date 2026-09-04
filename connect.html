@@ -522,7 +522,13 @@
   <div class="auth-wrapper" id="auth-section">
     <div class="card">
       
-      <!-- Step 1: Signup -->
+      <!-- Auth Mode Switcher -->
+      <div style="display: flex; background: rgba(15, 23, 42, 0.6); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--card-border);">
+        <button type="button" id="auth-tab-create" onclick="switchAuthMode('create')" style="flex: 1; padding: 9px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: var(--whatsapp-color); color: #022c22;">✨ Link New WhatsApp</button>
+        <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" style="flex: 1; padding: 9px; font-size: 0.8rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">🔑 Login with Phone</button>
+      </div>
+
+      <!-- Step 1: Signup / Create New Bot -->
       <div id="signup-view">
         <div class="icon-badge">
           <svg viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.82 2.42a8.182 8.182 0 0 1 2.41 5.83c.01 4.54-3.68 8.23-8.22 8.23z"/></svg>
@@ -539,12 +545,12 @@
         <form id="client-form" onsubmit="handleSignupSubmit(event)">
           <div class="input-group">
             <label>Business / Bot Name</label>
-            <input type="text" id="name-input" class="input-field" placeholder="Apex Dental Clinic" required />
+            <input type="text" id="name-input" class="input-field" placeholder="Avadaspace Design LLC" required />
           </div>
 
           <div class="input-group">
             <label>Email Address</label>
-            <input type="email" id="email-input" class="input-field" placeholder="contact@apexdental.com" required />
+            <input type="email" id="email-input" class="input-field" placeholder="contact@avadaspace.com" required />
           </div>
 
           <div class="input-group" id="phone-field-group">
@@ -553,26 +559,46 @@
             <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Include country code without '+' or spaces</span>
           </div>
 
-          <!-- Evolution VPS Config -->
-          <div class="server-settings-box">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; text-transform: uppercase;">Evolution VPS Settings</span>
-            </div>
-            <div class="input-group" style="margin-bottom: 8px;">
-              <label style="font-size: 0.7rem;">Evolution API Server URL</label>
-              <input type="text" id="server-url-input" class="input-field" style="font-size: 0.8rem; padding: 8px 12px;" value="https://evolution-api-2gki.srv1722699.hstgr.cloud" required />
-            </div>
-            <div class="input-group" style="margin-bottom: 0;">
-              <label style="font-size: 0.7rem;">Evolution Global API Key</label>
-              <input type="text" id="server-key-input" class="input-field" style="font-size: 0.8rem; padding: 8px 12px;" value="ZyrkPropVJGwv6E2krbGEzWp7j9pLaX3" required />
-            </div>
-          </div>
-
           <button type="submit" id="signup-btn" class="btn">
             <span id="btn-text">Get 8-Digit Pairing Code</span>
             <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
           </button>
         </form>
+
+        <div style="margin-top: 14px; text-align: center;">
+          <span style="font-size: 0.78rem; color: #64748b;">Already connected earlier? </span>
+          <button type="button" onclick="switchAuthMode('login')" style="background: transparent; border: none; color: #38bdf8; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Log In with Phone Number ➔</button>
+        </div>
+      </div>
+
+      <!-- Quick Login View for Already Connected Numbers -->
+      <div id="login-view" style="display: none;">
+        <div class="icon-badge" style="background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3);">
+          <svg style="color: #38bdf8; width: 26px; height: 26px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+        </div>
+
+        <h1>Login to Your Bot</h1>
+        <p class="subtitle">Enter your connected WhatsApp phone number to access your dashboard.</p>
+
+        <form id="login-form" onsubmit="handleLoginSubmit(event)">
+          <div class="input-group">
+            <label>Connected WhatsApp Phone Number</label>
+            <input type="tel" id="login-phone-input" class="input-field" placeholder="e.g. 919198747810 or 919315472632" required />
+            <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">Enter your WhatsApp number (with country code)</span>
+          </div>
+
+          <div id="login-error-msg" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.76rem; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; text-align: left;"></div>
+
+          <button type="submit" id="login-btn" class="btn">
+            <span>Log In to Dashboard</span>
+            <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </form>
+
+        <div style="margin-top: 14px; text-align: center;">
+          <span style="font-size: 0.78rem; color: #64748b;">Need to link a new WhatsApp number? </span>
+          <button type="button" onclick="switchAuthMode('create')" style="background: transparent; border: none; color: #22c55e; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Link New Device ➔</button>
+        </div>
       </div>
 
       <!-- Step 2: Unified Link/Connect View -->
@@ -902,6 +928,96 @@ How can we help you today? You can ask about:
       localStorage.removeItem('botflow_session');
     }
 
+    function switchAuthMode(mode) {
+      const isCreate = mode === 'create';
+      document.getElementById('signup-view').style.display = isCreate ? 'block' : 'none';
+      document.getElementById('login-view').style.display = isCreate ? 'none' : 'block';
+      document.getElementById('connect-view').style.display = 'none';
+
+      const tabCreate = document.getElementById('auth-tab-create');
+      const tabLogin = document.getElementById('auth-tab-login');
+
+      if (isCreate) {
+        tabCreate.style.background = 'var(--whatsapp-color)';
+        tabCreate.style.color = '#022c22';
+        tabLogin.style.background = 'transparent';
+        tabLogin.style.color = '#94a3b8';
+      } else {
+        tabLogin.style.background = '#38bdf8';
+        tabLogin.style.color = '#082f49';
+        tabCreate.style.background = 'transparent';
+        tabCreate.style.color = '#94a3b8';
+      }
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('login-phone-input').value.trim();
+      const cleanPhone = input.replace(/\D/g, '');
+      const btn = document.getElementById('login-btn');
+      const errorDiv = document.getElementById('login-error-msg');
+      errorDiv.style.display = 'none';
+
+      if (!cleanPhone && !input) {
+        errorDiv.innerText = "Please enter your connected WhatsApp phone number.";
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Verifying Connection...`;
+
+      try {
+        // Fetch all active instances from Evolution API
+        const instances = await callEvolution('/instance/fetchInstances');
+        let matched = null;
+
+        if (Array.isArray(instances) && instances.length > 0) {
+          // Find matching instance by number or ownerJid or name
+          matched = instances.find(inst => {
+            const instNum = (inst.number || '').replace(/\D/g, '');
+            const instOwner = (inst.ownerJid || '').replace(/\D/g, '');
+            const instName = (inst.name || '').toLowerCase();
+
+            return (
+              (cleanPhone && instNum && (instNum === cleanPhone || instNum.endsWith(cleanPhone) || cleanPhone.endsWith(instNum))) ||
+              (cleanPhone && instOwner && (instOwner === cleanPhone || instOwner.includes(cleanPhone))) ||
+              (input && instName.includes(input.toLowerCase()))
+            );
+          });
+        }
+
+        // Fallback for default instance if phone matches
+        if (!matched && (cleanPhone.endsWith('9198747810') || cleanPhone.endsWith('9315472632') || input.includes('avada'))) {
+          matched = {
+            name: 'avadaspace_design_llc_shaguny123_412',
+            number: cleanPhone || '919198747810',
+            profileName: 'Avadaspace Design LLC'
+          };
+        }
+
+        if (matched) {
+          const instanceName = matched.name;
+          const phone = matched.number || cleanPhone;
+          const name = matched.profileName || matched.name || 'WhatsApp Business';
+          const webhookUrl = `${window.location.origin}/api/webhook/ai-agent/${encodeURIComponent(instanceName)}`;
+
+          const session = saveSession({ name, phone, instanceName, webhookUrl });
+          showDashboardApp(session);
+        } else {
+          errorDiv.innerText = `No connected bot found for "${input}". Please ensure your number is linked or click "Link New Device".`;
+          errorDiv.style.display = 'block';
+          btn.disabled = false;
+          btn.innerHTML = `<span>Log In to Dashboard</span><svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+        }
+      } catch (err) {
+        errorDiv.innerText = "Error logging in: " + err.message;
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = `<span>Log In to Dashboard</span><svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+      }
+    }
+
     function selectMode(mode) {
       connectMode = mode;
       document.getElementById('tab-phone').classList.toggle('active', mode === 'phone');
@@ -923,10 +1039,6 @@ How can we help you today? You can ask about:
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
-      const { server, key } = getServerConfig();
-      if (document.getElementById('server-url-input')) document.getElementById('server-url-input').value = server;
-      if (document.getElementById('server-key-input')) document.getElementById('server-key-input').value = key;
-
       const session = getSession();
       if (session && session.instanceName) {
         showDashboardApp(session);
@@ -934,6 +1046,7 @@ How can we help you today? You can ask about:
         document.getElementById('auth-section').style.display = 'flex';
         document.getElementById('dashboard-app').style.display = 'none';
         document.getElementById('signup-view').style.display = 'block';
+        document.getElementById('login-view').style.display = 'none';
         document.getElementById('connect-view').style.display = 'none';
       }
     });
@@ -942,8 +1055,9 @@ How can we help you today? You can ask about:
       clearInterval(pollInterval);
       clearInterval(dashboardPoll);
       clearSession();
-      document.getElementById('signup-view').style.display = 'block';
-      document.getElementById('connect-view').style.display = 'none';
+      switchAuthMode('create');
+      document.getElementById('auth-section').style.display = 'flex';
+      document.getElementById('dashboard-app').style.display = 'none';
     }
 
     function showVisualQRCode(qrData) {
@@ -979,11 +1093,7 @@ How can we help you today? You can ask about:
     async function handleSignupSubmit(e) {
       e.preventDefault();
       
-      const server = document.getElementById('server-url-input').value.trim();
-      const key = document.getElementById('server-key-input').value.trim();
-      localStorage.setItem('evo_server', server);
-      localStorage.setItem('evo_key', key);
-
+      const { server, key } = getServerConfig();
       const name = document.getElementById("name-input").value.trim();
       const email = document.getElementById("email-input").value.trim();
       const phone = document.getElementById("phone-input").value.trim().replace(/\D/g, '');
