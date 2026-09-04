@@ -1291,16 +1291,30 @@ How can we help you today? You can ask about:
       btn.innerHTML = `<div class="spinner" style="width: 18px; height: 18px; margin: 0; border-width: 2px;"></div> Provisioning on Evolution...`;
 
       try {
-        // 1. Create Evolution Instance
+        // 1. Create Evolution Instance (With history sync disabled to save disk space & RAM)
         const createRes = await callEvolution('/instance/create', 'POST', {
           instanceName: instanceName,
           integration: 'WHATSAPP-BAILEYS',
+          syncFullHistory: false,
+          readMessages: true,
+          readStatus: false,
           number: connectMode === 'phone' ? phone : undefined
         });
 
         if (createRes.error || (createRes.status && createRes.status >= 400)) {
           throw new Error(createRes.response?.message || createRes.error || 'Check Evolution API Key or URL');
         }
+
+        // 1b. Configure instance settings: Disable status reading and full history sync
+        callEvolution(`/settings/set/${encodeURIComponent(instanceName)}`, 'POST', {
+          rejectCall: false,
+          msgRetryCounterCache: false,
+          alwaysOnline: true,
+          readMessages: true,
+          readStatus: false,
+          syncFullHistory: false,
+          groupsIgnore: true
+        }).catch(() => {});
 
         // 2. Set Webhook
         await callEvolution(`/webhook/set/${encodeURIComponent(instanceName)}`, 'POST', {

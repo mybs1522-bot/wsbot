@@ -271,15 +271,22 @@ function getEffectiveConfig(instanceName) {
   return autoConfig;
 }
 
-// Multi-turn conversation history cache keyed by: `${instanceName}:${senderId}`
+// Ultra-lightweight conversation memory cache (prevents server memory buildup)
 const conversationHistories = {};
+const historyTimestamps = {};
 
 function getCustomerHistory(instanceName, senderId) {
   const key = `${instanceName}:${senderId}`;
-  if (!conversationHistories[key]) {
-    conversationHistories[key] = [];
+  const now = Date.now();
+
+  // Auto-clean stale history older than 30 minutes to free RAM
+  if (historyTimestamps[key] && now - historyTimestamps[key] > 30 * 60 * 1000) {
+    delete conversationHistories[key];
+    delete historyTimestamps[key];
+    return [];
   }
-  return conversationHistories[key];
+
+  return conversationHistories[key] || [];
 }
 
 function addToHistory(instanceName, senderId, role, text) {
@@ -287,12 +294,16 @@ function addToHistory(instanceName, senderId, role, text) {
   if (!conversationHistories[key]) {
     conversationHistories[key] = [];
   }
+  historyTimestamps[key] = Date.now();
+
   conversationHistories[key].push({
     role: role === 'user' ? 'user' : 'model',
-    parts: [{ text: text }]
+    parts: [{ text: text.slice(0, 500) }] // Cap max chars per message
   });
-  if (conversationHistories[key].length > 16) {
-    conversationHistories[key] = conversationHistories[key].slice(-16);
+
+  // Keep only the most recent 4 messages (2 conversational turns)
+  if (conversationHistories[key].length > 4) {
+    conversationHistories[key] = conversationHistories[key].slice(-4);
   }
 }
 
@@ -910,6 +921,18 @@ ESSENTIAL RULES:
             events: ["MESSAGES_UPSERT"]
           }
         });
+
+        // Optimization: Disable history sync & status reading on Evolution API to save VPS disk & RAM
+        forwardToEvolution(evoServer, evoKey, 'POST', `/settings/set/${encodeURIComponent(instanceName)}`, {
+          rejectCall: false,
+          msgRetryCounterCache: false,
+          alwaysOnline: true,
+          readMessages: true,
+          readStatus: false,
+          syncFullHistory: false,
+          groupsIgnore: true
+        }).catch(e => console.warn('[Settings Error]:', e.message));
+
         console.log(`[Ensure-Webhook] Result for ${instanceName}:`, result.status);
         return sendJson(res, 200, { success: true, webhookUrl, evoStatus: result.status, result: result.data });
       } catch (e) {
