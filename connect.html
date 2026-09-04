@@ -985,34 +985,25 @@ How can we help you today? You can ask about:
     function switchAuthMode(mode) {
       const isCreate = mode === 'create';
       const isEmail = mode === 'email';
-      const isLogin = mode === 'login';
 
-      document.getElementById('signup-view').style.display = isCreate ? 'block' : 'none';
-      document.getElementById('email-otp-view').style.display = isEmail ? 'block' : 'none';
-      document.getElementById('login-view').style.display = isLogin ? 'block' : 'none';
-      document.getElementById('connect-view').style.display = 'none';
+      const signupView = document.getElementById('signup-view');
+      const emailOtpView = document.getElementById('email-otp-view');
+      const connectView = document.getElementById('connect-view');
+
+      if (signupView) signupView.style.display = isCreate ? 'block' : 'none';
+      if (emailOtpView) emailOtpView.style.display = isEmail ? 'block' : 'none';
+      if (connectView) connectView.style.display = 'none';
 
       const tabCreate = document.getElementById('auth-tab-create');
       const tabEmail = document.getElementById('auth-tab-email');
-      const tabLogin = document.getElementById('auth-tab-login');
 
-      // Reset all tabs
-      [tabCreate, tabEmail, tabLogin].forEach(t => {
-        if (t) {
-          t.style.background = 'transparent';
-          t.style.color = '#94a3b8';
-        }
-      });
-
-      if (isCreate && tabCreate) {
-        tabCreate.style.background = 'var(--whatsapp-color)';
-        tabCreate.style.color = '#022c22';
-      } else if (isEmail && tabEmail) {
-        tabEmail.style.background = '#c084fc';
-        tabEmail.style.color = '#3b0764';
-      } else if (isLogin && tabLogin) {
-        tabLogin.style.background = '#38bdf8';
-        tabLogin.style.color = '#082f49';
+      if (tabCreate) {
+        tabCreate.style.background = isCreate ? 'var(--whatsapp-color)' : 'transparent';
+        tabCreate.style.color = isCreate ? '#022c22' : '#94a3b8';
+      }
+      if (tabEmail) {
+        tabEmail.style.background = isEmail ? '#c084fc' : 'transparent';
+        tabEmail.style.color = isEmail ? '#3b0764' : '#94a3b8';
       }
     }
 
